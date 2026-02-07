@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>StoryTap — Touch Books for Blind Children</title>
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      overscroll-behavior: none;
+    }
+
+    @keyframes pulse-glow {
+
+      0%,
+      100% {
+        box-shadow: 0 0 40px 10px rgba(99, 102, 241, 0.3);
+      }
+
+      50% {
+        box-shadow: 0 0 80px 30px rgba(99, 102, 241, 0.5);
+      }
+    }
+
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+  </style>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useRef, useCallback } from 'https://esm.sh/react@18.3.1';
+    import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
+    import { BookOpen, Play, Settings, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { KokoroTTS } from 'https://esm.sh/kokoro-js';
+
+    const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
+
+    const VOICES = [
+      { name: "af_heart", label: "Warm & Gentle", emoji: "🌙" },
+      { name: "af_sky", label: "Bright & Cheerful", emoji: "☀️" },
+      { name: "bf_lily", label: "Soft & British", emoji: "🌸" },
+      { name: "am_puck", label: "Playful & Fun", emoji: "🎭" },
+    ];
+
+    const SPEEDS = [
+      { label: "Slow", value: 0.8 },
+      { label: "Normal", value: 1.0 },
+      { label: "Fast", value: 1.2 },
+    ];
+
+    const yieldToBrowser = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    const detectWebGPU = async () => {
+      try { return navigator.gpu && !!(await navigator.gpu.requestAdapter()); } catch { return false; }
+    };
+
+    // =============================================
+    // AUDIO CUE ENGINE - The heart of the blind UX
+    // =============================================
+    const useAudioCues = () => {
+      const ctxRef = useRef(null);
+
+      const getCtx = useCallback(() => {
+        if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctxRef.current.state === 'suspended') ctxRef.current.resume();
+        return ctxRef.current;
+      }, []);
+
+      const vibrate = useCallback((pattern) => {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+      }, []);
+
+      const play = useCallback((type) => {
+        const ctx = getCtx();
+        const now = ctx.currentTime;
+
+        // --- TAP CONFIRMED: Quick, bright pop. Tells child "I heard you!" ---
+        if (type === 'tap') {
+          vibrate(30);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(1320, now + 0.06);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        }
+
+        // --- STORY STARTING: Magical ascending chime. "Adventure begins!" ---
+        if (type === 'story_start') {
+          vibrate([50, 50, 100]);
+          const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0, now + i * 0.12);
+            gain.gain.linearRampToValueAtTime(0.12, now + i * 0.12 + 0.05);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.4);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.5);
+          });
+        }
+
+        // --- READY FOR NEXT: Gentle ding. "I'm done, tap for more!" ---
+        if (type === 'ready') {
+          vibrate(20);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 698.46; // F5
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.7);
+        }
+
+        // --- SENTENCE ADVANCING: Soft whoosh. "Turning the page..." ---
+        if (type === 'advance') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(400, now);
+          osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(0.06, now + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        }
+
+        // --- STORY FINISHED: Triumphant celebratory fanfare! ---
+        if (type === 'story_end') {
+          vibrate([100, 50, 100, 50, 200]);
+          const melody = [
+            { freq: 523.25, start: 0, dur: 0.2 },    // C
+            { freq: 659.25, start: 0.15, dur: 0.2 }, // E
+            { freq: 783.99, start: 0.3, dur: 0.2 },  // G
+            { freq: 1046.50, start: 0.45, dur: 0.5 }, // C (high, held)
+          ];
+          melody.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.value = n.freq;
+            gain.gain.setValueAtTime(0, now + n.start);
+            gain.gain.linearRampToValueAtTime(0.15, now + n.start + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + n.start + n.dur);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(now + n.start);
+            osc.stop(now + n.start + n.dur + 0.1);
+          });
+        }
+
+        // --- BUSY/WAIT: Low thunk. "Hold on, I'm working..." ---
+        if (type === 'busy') {
+          vibrate(15);
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 220;
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.connect(gain).connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+
+      }, [getCtx, vibrate]);
+
+      return { play, vibrate };
+    };
+
+    // =============================================
+    // MAIN APPLICATION
+    // =============================================
+    const App = () => {
+      const [mode, setMode] = useState('setup'); // 'setup' | 'loading' | 'reading'
+      const [storyTitle, setStoryTitle] = useState("My Story");
+      const [rawText, setRawText] = useState("Once upon a time, there was a little bear.\nThe bear loved honey more than anything.\nOne day, the bear found a beehive in a tall tree.\nThe bear climbed up, up, up!\nBuzz buzz buzz, said the bees.\nBut the bear was brave.\nThe bear got the honey and climbed back down.\nYum yum yum, said the happy bear.\nThe end.");
+      const [sentences, setSentences] = useState([]);
+      const [currentIndex, setCurrentIndex] = useState(-1); // -1 = cover, 0+ = sentences, sentences.length = end
+      const [voice, setVoice] = useState(VOICES[0].name);
+      const [speed, setSpeed] = useState(1.0);
+
+      // Audio/TTS state
+      const [modelReady, setModelReady] = useState(false);
+      const [modelProgress, setModelProgress] = useState(0);
+      const [isGenerating, setIsGenerating] = useState(false);
+      const [isPlaying, setIsPlaying] = useState(false);
+
+      // Refs
+      const ttsRef = useRef(null);
+      const audioRef = useRef(null);
+      const cacheRef = useRef({});
+      const prefetchRef = useRef(new Set());
+
+      const { play: playCue, vibrate } = useAudioCues();
+
+      // --- Load TTS Model ---
+      const loadModel = useCallback(async () => {
+        if (ttsRef.current) { setModelReady(true); return; }
+        setMode('loading');
+        await yieldToBrowser();
+
+        const hasWebGPU = await detectWebGPU();
+        const tts = await KokoroTTS.from_pretrained(MODEL_ID, {
+          dtype: hasWebGPU ? 'fp32' : 'q4',
+          device: hasWebGPU ? 'webgpu' : 'wasm',
+          progress_callback: (p) => {
+            if (p.status === 'progress' && p.total) setModelProgress(Math.round((p.loaded / p.total) * 100));
+          }
+        });
+        ttsRef.current = tts;
+        setModelReady(true);
+      }, []);
+
+      // --- Generate TTS ---
+      const generateAudio = useCallback(async (text) => {
+        if (!ttsRef.current) return null;
+        await yieldToBrowser();
+        const audio = await ttsRef.current.generate(text, { voice, speed });
+        return URL.createObjectURL(audio.toBlob());
+      }, [voice, speed]);
+
+      // --- Prefetch upcoming sentences ---
+      const prefetch = useCallback(async (idx, list) => {
+        const targets = [idx, idx + 1, idx + 2].filter(i => i >= 0 && i < list.length);
+        for (const i of targets) {
+          if (!cacheRef.current[i] && !prefetchRef.current.has(i)) {
+            prefetchRef.current.add(i);
+            try {
+              const url = await generateAudio(list[i]);
+              if (url) cacheRef.current[i] = url;
+            } catch (e) { console.warn('Prefetch error', e); }
+            prefetchRef.current.delete(i);
+          }
+        }
+      }, [generateAudio]);
+
+      // --- Play a sentence ---
+      const playSentence = useCallback(async (idx, list) => {
+        if (idx < 0 || idx >= list.length) return;
+
+        setIsPlaying(false);
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; }
+
+        let url = cacheRef.current[idx];
+        if (!url) {
+          setIsGenerating(true);
+          try {
+            url = await generateAudio(list[idx]);
+            if (url) cacheRef.current[idx] = url;
+          } catch (e) {
+            console.error('TTS Error', e);
+            setIsGenerating(false);
+            playCue('ready'); // Still signal ready so child can tap again
+            return;
+          }
+          setIsGenerating(false);
+        }
+
+        if (url && audioRef.current) {
+          audioRef.current.src = url;
+          audioRef.current.play().then(() => setIsPlaying(true)).catch(console.error);
+        }
+        prefetch(idx + 1, list);
+      }, [generateAudio, prefetch, playCue]);
+
+      // --- Main Tap Handler (THE CORE INTERACTION) ---
+      const handleTap = useCallback(() => {
+        // If generating or playing, give "busy" feedback and ignore
+        if (isGenerating) { playCue('busy'); return; }
+        if (isPlaying) { playCue('busy'); return; }
+
+        // Immediate feedback: "I heard your tap!"
+        playCue('tap');
+
+        const nextIndex = currentIndex + 1;
+
+        // COVER PAGE -> FIRST SENTENCE
+        if (currentIndex === -1) {
+          playCue('story_start');
+          setTimeout(() => {
+            setCurrentIndex(0);
+            playSentence(0, sentences);
+          }, 600); // Let start chime play
+          return;
+        }
+
+        // LAST SENTENCE -> END SCREEN
+        if (nextIndex >= sentences.length) {
+          playCue('story_end');
+          setCurrentIndex(sentences.length); // End state
+          return;
+        }
+
+        // NORMAL ADVANCE
+        playCue('advance');
+        setCurrentIndex(nextIndex);
+        playSentence(nextIndex, sentences);
+
+      }, [currentIndex, sentences, isGenerating, isPlaying, playCue, playSentence]);
+
+      // --- Audio ended: Play "ready" cue ---
+      const handleAudioEnded = useCallback(() => {
+        setIsPlaying(false);
+        if (currentIndex < sentences.length) {
+          playCue('ready');
+        }
+      }, [currentIndex, sentences.length, playCue]);
+
+      // --- Start Story (from setup) ---
+      const startStory = async () => {
+        // Parse sentences: split by newline, then by sentence-ending punctuation
+        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
+        const allSentences = [];
+        lines.forEach(line => {
+          // Split on . ! ? but keep the punctuation
+          const parts = line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [line];
+          parts.forEach(p => {
+            const clean = p.trim();
+            if (clean) allSentences.push(clean);
+          });
+        });
+
+        if (allSentences.length === 0) return;
+
+        // Clear old cache
+        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+        cacheRef.current = {};
+
+        setSentences(allSentences);
+        setCurrentIndex(-1); // Start at cover
+
+        // Load model if needed
+        if (!ttsRef.current) {
+          await loadModel();
+        }
+        setMode('reading');
+
+        // Prefetch first few sentences
+        setTimeout(() => prefetch(0, allSentences), 100);
+      };
+
+      // --- Return to Setup ---
+      const exitStory = () => {
+        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+        setMode('setup');
+        setCurrentIndex(-1);
+        setIsPlaying(false);
+        setIsGenerating(false);
+      };
+
+      // =============================================
+      // RENDER: LOADING SCREEN
+      // =============================================
+      if (mode === 'loading') {
+        return (
+          <div className="fixed inset-0 bg-indigo-950 flex flex-col items-center justify-center p-8">
+            <Loader2 className="w-16 h-16 text-indigo-400 animate-spin mb-6" />
+            <h2 className="text-2xl font-bold text-white mb-4">Loading Voice Engine</h2>
+            <div className="w-64 h-3 bg-indigo-900 rounded-full overflow-hidden">
+              <div className="h-full bg-indigo-400 transition-all" style={{ width: `${modelProgress}%` }} />
+            </div>
+            <p className="text-indigo-400 mt-3 text-sm">{modelProgress}%</p>
+          </div>
+        );
+      }
+
+      // =============================================
+      // RENDER: PARENT SETUP SCREEN
+      // =============================================
+      if (mode === 'setup') {
+        return (
+          <div className="min-h-screen bg-slate-100 p-4 md:p-8">
+            <div className="max-w-2xl mx-auto space-y-6">
+              {/* Header */}
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-indigo-600 rounded-2xl text-white">
+                  <BookOpen size={28} />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-slate-800">StoryTap</h1>
+                  <p className="text-xs text-indigo-600 font-bold">Touch Stories for Blind Children</p>
+                </div>
+              </div>
+
+              {/* Instructions */}
+              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-sm text-indigo-800">
+                <strong>How it works:</strong> Paste any story below. Your child taps anywhere on the screen to hear each sentence read aloud. Rich audio cues and vibrations guide them through the story.
+              </div>
+
+              {/* Main Card */}
+              <div className="bg-white rounded-3xl shadow-xl p-6 space-y-6">
+                {/* Title */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Story Title</label>
+                  <input
+                    type="text"
+                    value={storyTitle}
+                    onChange={e => setStoryTitle(e.target.value)}
+                    className="w-full p-4 rounded-xl border-2 border-slate-100 text-xl font-bold focus:border-indigo-300 focus:outline-none"
+                    placeholder="My Story"
+                  />
+                </div>
+
+                {/* Story Text */}
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Story Text</label>
+                  <textarea
+                    value={rawText}
+                    onChange={e => setRawText(e.target.value)}
+                    className="w-full min-h-[200px] p-4 rounded-xl border-2 border-slate-100 text-base leading-relaxed focus:border-indigo-300 focus:outline-none"
+                    placeholder="Paste your story here..."
+                  />
+                  <p className="text-xs text-slate-400 mt-1">Each sentence will be read one at a time.</p>
+                </div>
+
+                {/* Voice & Speed */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Voice</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {VOICES.map(v => (
+                        <button
+                          key={v.name}
+                          onClick={() => setVoice(v.name)}
+                          className={`p-3 rounded-xl text-left border-2 transition-all ${voice === v.name ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}
+                        >
+                          <span className="text-lg">{v.emoji}</span>
+                          <div className="text-xs font-medium text-slate-700 mt-1">{v.label}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Speed</label>
+                    <div className="flex flex-col gap-2">
+                      {SPEEDS.map(s => (
+                        <button
+                          key={s.value}
+                          onClick={() => setSpeed(s.value)}
+                          className={`p-3 rounded-xl text-center border-2 font-bold transition-all ${speed === s.value ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-500 hover:bg-slate-50'}`}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Start Button */}
+                <button
+                  onClick={startStory}
+                  disabled={!rawText.trim()}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-black py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-lg transition-all disabled:opacity-50"
+                >
+                  <Play fill="white" size={24} />
+                  Give to Child
+                </button>
+              </div>
+
+              {modelReady && (
+                <div className="flex items-center justify-center gap-2 text-emerald-600">
+                  <Check size={16} /> <span className="text-xs font-bold">Voice engine cached & ready</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      }
+
+      // =============================================
+      // RENDER: READING MODE (Child's Full-Screen Experience)
+      // =============================================
+      const isCover = currentIndex === -1;
+      const isEnd = currentIndex >= sentences.length;
+      const isReading = !isCover && !isEnd;
+
+      return (
+        <div
+          onClick={handleTap}
+          className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden bg-black"
+          style={{ WebkitUserSelect: 'none', userSelect: 'none' }}
+        >
+          <audio ref={audioRef} onEnded={handleAudioEnded} hidden />
+
+          {/* Parent Exit Button (Small, Top Left) */}
+          <button
+            onClick={(e) => { e.stopPropagation(); exitStory(); }}
+            className="absolute top-4 left-4 z-50 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white/50 hover:text-white transition-all"
+            aria-label="Exit story"
+          >
+            <ArrowLeft size={20} />
+          </button>
+
+          {/* COVER PAGE */}
+          {isCover && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-950">
+              <div className="w-32 h-40 bg-white/10 rounded-xl mb-8 flex items-center justify-center pulse-glow">
+                <BookOpen size={48} className="text-white" />
+              </div>
+              <h1 className="text-4xl md:text-6xl font-black text-white text-center mb-4 drop-shadow-lg">
+                {storyTitle}
+              </h1>
+              <p className="text-white/60 text-lg mb-12">A Story for You</p>
+
+              <div className="flex flex-col items-center animate-bounce">
+                <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-3">
+                  <Volume2 size={36} className="text-white" />
+                </div>
+                <span className="text-white/80 font-bold text-lg uppercase tracking-wider">Tap Anywhere</span>
+              </div>
+            </div>
+          )}
+
+          {/* READING A SENTENCE */}
+          {isReading && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 md:p-16 bg-black">
+              {/* Generating Indicator */}
+              {isGenerating && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20">
+                  <Loader2 className="w-16 h-16 text-indigo-400 animate-spin" />
+                </div>
+              )}
+
+              {/* The Sentence */}
+              <p className="text-3xl md:text-5xl lg:text-6xl font-bold text-white text-center leading-relaxed max-w-5xl">
+                {sentences[currentIndex]}
+              </p>
+
+              {/* Progress & Status */}
+              <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-4">
+                {isPlaying ? (
+                  <div className="flex items-center gap-2 text-indigo-400">
+                    <Volume2 size={24} className="animate-pulse" />
+                    <span className="text-sm font-bold uppercase tracking-wider">Listening...</span>
+                  </div>
+                ) : !isGenerating && (
+                  <div className="flex items-center gap-2 text-white/50 animate-bounce">
+                    <span className="text-sm font-bold uppercase tracking-wider">Tap for Next</span>
+                  </div>
+                )}
+
+                {/* Progress Bar */}
+                <div className="w-48 h-1 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-400 transition-all duration-300"
+                    style={{ width: `${((currentIndex + 1) / sentences.length) * 100}%` }}
+                  />
+                </div>
+                <span className="text-white/30 text-xs">{currentIndex + 1} of {sentences.length}</span>
+              </div>
+            </div>
+          )}
+
+          {/* END SCREEN */}
+          {isEnd && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-yellow-500 via-orange-500 to-red-500">
+              <Sparkles size={80} className="text-white mb-8 animate-bounce" />
+              <h2 className="text-5xl md:text-7xl font-black text-white text-center mb-4">The End!</h2>
+              <p className="text-white/80 text-xl mb-12">Great listening!</p>
+
+              <div className="flex flex-col items-center animate-pulse">
+                <span className="text-white/80 font-bold text-lg uppercase tracking-wider">Tap to Start Over</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+
+</html>
