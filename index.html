@@ -159,9 +159,9 @@
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef, useCallback } from 'https://esm.sh/react@18.3.1';
+    import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -306,9 +306,13 @@
     // =============================================
     // INDEXEDDB AUDIO CACHE (Persistent across sessions)
     // =============================================
+    // =============================================
+    // AUDIO CACHE SYSTEM (IndexedDB)
+    // =============================================
     const DB_NAME = 'StoryTapAudioCache';
-    const DB_VERSION = 1;
-    const STORE_NAME = 'audio';
+    const DB_VERSION = 2; // Upgraded to support LRU
+    const STORE_NAME = 'audio_v2';
+    const MAX_ITEMS = 300; // Limit to ~15MB of audio
 
     const openDB = () => new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -316,8 +320,13 @@
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = (e) => {
         const db = e.target.result;
+        // Clean up old v1 store if exists
+        if (db.objectStoreNames.contains('audio')) {
+          db.deleteObjectStore('audio');
+        }
         if (!db.objectStoreNames.contains(STORE_NAME)) {
-          db.createObjectStore(STORE_NAME);
+          const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+          store.createIndex('ts', 'ts'); // Timestamp index for LRU
         }
       };
     });
@@ -326,10 +335,18 @@
       try {
         const db = await openDB();
         return new Promise((resolve) => {
-          const tx = db.transaction(STORE_NAME, 'readonly');
+          const tx = db.transaction(STORE_NAME, 'readwrite'); // Readwrite to update TS
           const store = tx.objectStore(STORE_NAME);
           const request = store.get(key);
-          request.onsuccess = () => resolve(request.result || null);
+          request.onsuccess = () => {
+            const result = request.result;
+            if (result) {
+              // Update timestamp (LRU)
+              result.ts = Date.now();
+              store.put(result);
+              resolve(result.blob);
+            } else resolve(null);
+          };
           request.onerror = () => resolve(null);
         });
       } catch (e) { return null; }
@@ -341,7 +358,28 @@
         return new Promise((resolve) => {
           const tx = db.transaction(STORE_NAME, 'readwrite');
           const store = tx.objectStore(STORE_NAME);
-          store.put(blob, key);
+
+          store.put({ key, blob, ts: Date.now() });
+
+          // Periodic cleanup (simple check)
+          const countReq = store.count();
+          countReq.onsuccess = () => {
+            if (countReq.result > MAX_ITEMS) {
+              // Delete oldest
+              const idx = store.index('ts');
+              const cursorReq = idx.openCursor(); // Ascending = oldest first
+              let deleted = 0;
+              cursorReq.onsuccess = (e) => {
+                const cursor = e.target.result;
+                if (cursor && deleted < (countReq.result - MAX_ITEMS) + 5) {
+                  cursor.delete();
+                  deleted++;
+                  cursor.continue();
+                }
+              };
+            }
+          };
+
           tx.oncomplete = () => resolve(true);
           tx.onerror = () => resolve(false);
         });
@@ -476,14 +514,29 @@
     // =============================================
     // MAIN APPLICATION
     // =============================================
+    // Default constants
+    const DEFAULT_STORY_TITLE = "The Brave Little Bear";
+    const DEFAULT_STORY_TEXT = "Once upon a time, there was a little bear who lived in a cozy cave.\nThe bear loved honey more than anything in the world.\nOne sunny morning, the bear smelled something sweet.\nIt was coming from a tall, tall tree!\nThe bear looked up and saw a beehive.\nBuzz buzz buzz, sang the busy bees.\nThe little bear was scared, but also very hungry.\nSo the bear took a deep breath and started to climb.\nUp, up, up went the brave little bear!\nThe bees flew around, but the bear kept going.\nFinally, the bear reached the golden honey.\nYum yum yum! It was the sweetest honey ever.\nThe bear climbed down with a happy, sticky smile.\nAnd from that day on, everyone called the bear the bravest in the forest.\nThe end.";
+    const STORAGE_KEY = 'storytap_prefs_v1';
+
+    // =============================================
+    // MAIN APPLICATION
+    // =============================================
     const App = () => {
+      // Load preferences
+      const prefs = useMemo(() => {
+        try {
+          return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        } catch { return {}; }
+      }, []);
+
       const [mode, setMode] = useState('setup');
-      const [storyTitle, setStoryTitle] = useState("The Brave Little Bear");
-      const [rawText, setRawText] = useState("Once upon a time, there was a little bear who lived in a cozy cave.\nThe bear loved honey more than anything in the world.\nOne sunny morning, the bear smelled something sweet.\nIt was coming from a tall, tall tree!\nThe bear looked up and saw a beehive.\nBuzz buzz buzz, sang the busy bees.\nThe little bear was scared, but also very hungry.\nSo the bear took a deep breath and started to climb.\nUp, up, up went the brave little bear!\nThe bees flew around, but the bear kept going.\nFinally, the bear reached the golden honey.\nYum yum yum! It was the sweetest honey ever.\nThe bear climbed down with a happy, sticky smile.\nAnd from that day on, everyone called the bear the bravest in the forest.\nThe end.");
+      const [storyTitle, setStoryTitle] = useState(prefs.storyTitle || DEFAULT_STORY_TITLE);
+      const [rawText, setRawText] = useState(prefs.rawText || DEFAULT_STORY_TEXT);
       const [sentences, setSentences] = useState([]);
       const [currentIndex, setCurrentIndex] = useState(-1);
-      const [voice, setVoice] = useState(VOICES[0].name);
-      const [speed, setSpeed] = useState(1.0);
+      const [voice, setVoice] = useState(prefs.voice || VOICES[0].name);
+      const [speed, setSpeed] = useState(prefs.speed || 1.0);
       const [isTransitioning, setIsTransitioning] = useState(false);
 
       // Engine state
@@ -497,10 +550,45 @@
 
       // Accessibility Settings
       const [showSettings, setShowSettings] = useState(false);
-      const [soundCuesEnabled, setSoundCuesEnabled] = useState(true);
-      const [vibrationEnabled, setVibrationEnabled] = useState(true);
-      const [theme, setTheme] = useState('default');
-      const [textSize, setTextSize] = useState('normal');
+      const [showLibrary, setShowLibrary] = useState(false);
+      const [library, setLibrary] = useState(() => {
+        try { return JSON.parse(localStorage.getItem('storytap_library_v1')) || []; }
+        catch { return []; }
+      });
+      useEffect(() => localStorage.setItem('storytap_library_v1', JSON.stringify(library)), [library]);
+
+      const saveToLibrary = () => {
+        if (!storyTitle.trim()) return;
+        const newStory = { id: Date.now(), title: storyTitle, text: rawText };
+        setLibrary(prev => [newStory, ...prev]);
+        alert('Story saved to library!');
+      };
+
+      const loadFromLibrary = (story) => {
+        setStoryTitle(story.title);
+        setRawText(story.text);
+        setShowLibrary(false);
+      };
+
+      const deleteFromLibrary = (id, e) => {
+        e.stopPropagation();
+        if (confirm('Delete this story?')) {
+          setLibrary(prev => prev.filter(s => s.id !== id));
+        }
+      };
+      const [soundCuesEnabled, setSoundCuesEnabled] = useState(prefs.soundCuesEnabled ?? true);
+      const [vibrationEnabled, setVibrationEnabled] = useState(prefs.vibrationEnabled ?? true);
+      const [theme, setTheme] = useState(prefs.theme || 'default');
+      const [textSize, setTextSize] = useState(prefs.textSize || 'normal');
+
+      // Save preferences on change
+      useEffect(() => {
+        const toSave = {
+          storyTitle, rawText, voice, speed,
+          soundCuesEnabled, vibrationEnabled, theme, textSize
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
+      }, [storyTitle, rawText, voice, speed, soundCuesEnabled, vibrationEnabled, theme, textSize]);
 
       // Exit button hold state
       const [isHoldingExit, setIsHoldingExit] = useState(false);
@@ -853,6 +941,47 @@
       }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, playCue, playSentence]);
 
       // Start story
+      // Background Pre-generation of First Page (Sentence 0 & 1)
+      useEffect(() => {
+        // Clear cache on any invalidating change
+        const clearCache = () => {
+          Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+          cacheRef.current = {};
+          prefetchRef.current.clear();
+        };
+        clearCache();
+
+        const timer = setTimeout(async () => {
+          if (!rawText.trim() || !modelReady || engineMode !== 'kokoro' || !ttsRef.current) return;
+
+          const sentences = [];
+          rawText.split('\n').forEach(line => {
+            (line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).forEach(s => {
+              if (s.trim()) sentences.push(s.trim());
+            });
+          });
+
+          if (!sentences.length) return;
+
+          // Generate first 2 sentences
+          try {
+            // 0
+            if (!cacheRef.current[0]) {
+              const url0 = await generateKokoroAudio(sentences[0]);
+              if (url0) cacheRef.current[0] = url0;
+            }
+            // 1
+            if (sentences[1] && !cacheRef.current[1]) {
+              await yieldIdle(100);
+              const url1 = await generateKokoroAudio(sentences[1]);
+              if (url1) cacheRef.current[1] = url1;
+            }
+          } catch (e) { }
+        }, 1500); // Debounce
+
+        return () => clearTimeout(timer);
+      }, [rawText, voice, speed, modelReady, engineMode, generateKokoroAudio]);
+
       // Start story
       const startStory = async () => {
         const allSentences = [];
@@ -864,12 +993,8 @@
         });
         if (!allSentences.length) return;
 
-        // Clear old cache safely
-        Object.values(cacheRef.current).forEach(url => {
-          try { URL.revokeObjectURL(url); } catch (e) { }
-        });
-        cacheRef.current = {};
-        prefetchRef.current.clear();
+        // Note: We do NOT clear cache here anymore because background generator might have populated it.
+        // Cache is cleared by the useEffect above when settings change.
 
         setSentences(allSentences);
         setCurrentIndex(-1);
@@ -894,11 +1019,13 @@
           setModelStatus('Preparing first sentence...');
 
           try {
-            // Check cache first (incase we are restarting same story)
-            // But we cleared cache above, so this is for robustness
-            const firstSentence = allSentences[0];
-            const url = await generateKokoroAudio(firstSentence);
-            if (url) cacheRef.current[0] = url;
+            if (cacheRef.current[0]) {
+              // Already pre-buffered!
+            } else {
+              const firstSentence = allSentences[0];
+              const url = await generateKokoroAudio(firstSentence);
+              if (url) cacheRef.current[0] = url;
+            }
           } catch (e) {
             console.warn('Initial generation error:', e);
           }
@@ -1040,6 +1167,40 @@
         </div>
       );
 
+      const LibraryModal = () => (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowLibrary(false)}>
+          <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col ${currentTheme.border} border`} onClick={e => e.stopPropagation()}>
+            <div className={`p-6 border-b ${currentTheme.border} flex items-center justify-between`}>
+              <h2 className={`text-xl font-bold ${currentTheme.textMain}`}>My Library</h2>
+              <button onClick={() => setShowLibrary(false)} className={`p-2 rounded-full transition-colors ${currentTheme.textSub} hover:bg-black/5`}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto space-y-3 flex-1">
+              {library.length === 0 ? (
+                <div className={`text-center py-10 ${currentTheme.textSub} opacity-60`}>
+                  <BookOpen size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>No saved stories yet.</p>
+                  <p className="text-sm mt-2">Save your current story to find it here later.</p>
+                </div>
+              ) : (
+                library.map(story => (
+                  <div key={story.id} onClick={() => loadFromLibrary(story)} className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${currentTheme.cardBg} ${currentTheme.border} hover:shadow-md hover:border-${currentTheme.highlight}-300`}>
+                    <div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>{story.title}</div>
+                      <div className={`text-xs ${currentTheme.textSub} mt-1 line-clamp-1`}>{story.text.substring(0, 50)}...</div>
+                    </div>
+                    <button onClick={(e) => deleteFromLibrary(story.id, e)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      );
+
       // =============================================
       // LOADING SCREEN
       // =============================================
@@ -1081,6 +1242,7 @@
         return (
           <div className={`min-h-screen ${currentTheme.pageBg} p-4 md:p-8 transition-colors duration-300`}>
             {showSettings && <SettingsModal />}
+            {showLibrary && <LibraryModal />}
 
             <div className="max-w-2xl mx-auto space-y-6">
               <header className="flex items-center justify-between mb-8">
@@ -1100,9 +1262,15 @@
                     <p className={`text-sm font-medium ${currentTheme.textSub} transition-colors`}>Touch stories for little ones</p>
                   </div>
                 </div>
-                <button onClick={() => setShowSettings(true)} className={`p-3 rounded-xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
-                  <Settings size={22} />
-                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowLibrary(true)} className={`p-3 rounded-xl shadow-md hover:shadow-lg transition-all border flex items-center gap-2 ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
+                    <List size={20} />
+                    <span className="hidden sm:inline font-medium text-sm">Library</span>
+                  </button>
+                  <button onClick={() => setShowSettings(true)} className={`p-3 rounded-xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
+                    <Settings size={22} />
+                  </button>
+                </div>
               </header>
 
               <div className={`rounded-2xl p-4 shadow-lg ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-indigo-200'}`}>
@@ -1131,7 +1299,12 @@
                 </div>
 
                 <div className="space-y-2">
-                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
+                  <div className="flex justify-between items-center">
+                    <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
+                    <button onClick={saveToLibrary} className={`text-xs font-bold px-3 py-1.5 rounded-lg bg-${currentTheme.highlight}-100 text-${currentTheme.highlight}-700 hover:bg-${currentTheme.highlight}-200 transition-colors flex items-center gap-1`}>
+                      <Save size={14} /> Save
+                    </button>
+                  </div>
                   <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Paste or type your story here..." />
                 </div>
 
