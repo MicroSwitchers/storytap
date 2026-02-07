@@ -886,6 +886,15 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
       }, [voice, speed, textSize, theme, soundCuesEnabled, vibrationEnabled, allowSkip, showBoundary, boundaryColor, showTitlePage, loopStory]);
 
+      // Cancel a download in progress
+      const cancelDownload = (storyId, e) => {
+        if (e) e.stopPropagation();
+        if (processingRef.current === storyId) {
+          processingRef.current = null;
+        }
+        setLibrary(prev => prev.map(s => s.id === storyId ? { ...s, status: 'ready', progress: 0 } : s));
+      };
+
       const processStory = async (story) => {
         processingRef.current = story.id;
 
@@ -899,10 +908,22 @@
         }
 
         let completed = 0;
-        for (const sentence of sentences) {
-          if (processingRef.current !== story.id) break;
+        const BATCH_SIZE = 2; // Process 2 sentences then yield heavily
 
-          await generateKokoroAudio(sentence, story.voice, story.speed);
+        for (let i = 0; i < sentences.length; i++) {
+          // Check for cancellation before each sentence
+          if (processingRef.current !== story.id) {
+            console.log('Download cancelled for story:', story.id);
+            return;
+          }
+
+          try {
+            await generateKokoroAudio(sentences[i], story.voice, story.speed);
+          } catch (e) {
+            console.warn('Error caching sentence:', e);
+            // Continue even if one sentence fails
+          }
+
           completed++;
 
           setLibrary(prev => prev.map(s => s.id === story.id ? {
@@ -910,10 +931,16 @@
             progress: Math.round((completed / total) * 100)
           } : s));
 
-          // Yield generously between sentences so the UI stays fully responsive
-          // (parents can open settings, browse, etc. while caching runs)
+          // Yield very generously - prioritize UI responsiveness over speed
+          // Every BATCH_SIZE sentences, take a longer break
           await yieldToBrowser();
-          await new Promise(r => setTimeout(r, 100));
+          if (i % BATCH_SIZE === BATCH_SIZE - 1) {
+            // Longer pause every few sentences to let the UI breathe
+            await new Promise(r => setTimeout(r, 300));
+            await yieldIdle(200);
+          } else {
+            await new Promise(r => setTimeout(r, 150));
+          }
         }
 
         if (processingRef.current === story.id) {
@@ -1196,48 +1223,10 @@
       // =============================================
       // UNIFIED SPEECH SYSTEM
       // =============================================
-      const prefetch = useCallback(async (startIdx, list) => {
-        if (engineMode !== 'kokoro' || !ttsRef.current) return;
-
-        const device = deviceInfoRef.current;
-        const isSlowDevice = device.isMobile || device.memory < 4 || device.cores < 4;
-
-        // Priority 1: CRITICAL — next 2 sentences with NO yielding (instant pipeline)
-        for (let i = startIdx; i < Math.min(startIdx + 2, list.length); i++) {
-          if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
-          prefetchRef.current.add(i);
-          try {
-            const url = await generateKokoroAudio(list[i]);
-            if (url) cacheRef.current[i] = url;
-          } catch (e) { console.warn('Prefetch P1 error:', e); }
-          prefetchRef.current.delete(i);
-        }
-
-        // Priority 2: Look-ahead buffer — next 4-8 sentences with minimal yielding
-        const lookAhead = isSlowDevice ? 4 : 8;
-        for (let i = startIdx + 2; i < Math.min(startIdx + 2 + lookAhead, list.length); i++) {
-          if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
-          prefetchRef.current.add(i);
-          await yieldIdle(5);
-          try {
-            const url = await generateKokoroAudio(list[i]);
-            if (url) cacheRef.current[i] = url;
-          } catch (e) { console.warn('Prefetch P2 error:', e); }
-          prefetchRef.current.delete(i);
-        }
-
-        // Priority 3: Fill remaining gaps during true idle time (background)
-        for (let i = 0; i < list.length; i++) {
-          if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
-          prefetchRef.current.add(i);
-          await yieldIdle(isSlowDevice ? 80 : 30);
-          try {
-            const url = await generateKokoroAudio(list[i]);
-            if (url) cacheRef.current[i] = url;
-          } catch (e) { console.warn('Prefetch P3 error:', e); }
-          prefetchRef.current.delete(i);
-        }
-      }, [engineMode, generateKokoroAudio]);
+      // NOTE: No background prefetching - audio is ONLY cached via:
+      // 1. Download button (processStory function)
+      // 2. On-demand when playing each sentence (generateKokoroAudio caches to IndexedDB)
+      // This ensures the app never stalls on low-power devices
 
       const playSentence = useCallback(async (idx, list) => {
         if (idx < -1 || idx >= list.length) return; // Allow -1 for Title
@@ -1268,9 +1257,8 @@
               await audioRef.current.play();
               setIsPlaying(true);
 
-              // IMMEDIATELY start prefetching next sentences while this one plays
-              // This runs in background - generates while audio is playing
-              prefetch(idx + 1, list);
+              // NO background prefetching - audio is ONLY cached via Download button
+              // This prevents stalling on low-power devices
 
               return;
             } catch (e) {
@@ -1292,30 +1280,27 @@
 
         setIsPlaying(false);
         playCue('ready');
-      }, [engineMode, generateKokoroAudio, speakWithFallback, prefetch, playCue, storyTitle]);
+      }, [engineMode, generateKokoroAudio, speakWithFallback, playCue, storyTitle]);
 
-      // Audio ended handler - also continue prefetching
+      // Audio ended handler
       const handleAudioEnded = useCallback(() => {
         setIsPlaying(false);
         if (currentIndex >= 0 && currentIndex < sentences.length) {
           playCue('ready');
 
-          // Pre-load next sentence audio for instant playback on next tap
+          // If next sentence is already cached (from Download), pre-load it for instant playback
+          // But NO background generation - just check if it's already in cache
           const nextIdx = currentIndex + 1;
           if (nextIdx < sentences.length) {
             const nextUrl = cacheRef.current[nextIdx];
             if (nextUrl && audioRef.current) {
               audioRef.current.src = nextUrl;
-              audioRef.current.load(); // Force browser to decode audio ahead of time
+              audioRef.current.load(); // Force browser to decode cached audio ahead of time
             }
           }
-
-          // Continue prefetching while waiting for next tap
-          if (engineMode === 'kokoro' && ttsRef.current) {
-            prefetch(currentIndex + 1, sentences);
-          }
+          // NO prefetching here - audio is ONLY cached via Download button
         }
-      }, [currentIndex, sentences, engineMode, playCue, prefetch]);
+      }, [currentIndex, sentences, playCue]);
 
       // Exit button hold logic
       const startHoldExit = (e) => {
@@ -1492,51 +1477,18 @@
         handleTap();
       }, [handleTap]);
 
-      // Start story
-      // Background Pre-generation of First Page (Sentence 0 & 1)
+      // Clear in-memory cache when voice/speed settings change
+      // No automatic pre-generation - audio is ONLY cached via Download button or on-demand playback
       useEffect(() => {
-        // Clear cache on any invalidating change
-        const clearCache = () => {
-          Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
-          cacheRef.current = {};
-          prefetchRef.current.clear();
-        };
-        clearCache();
-
-        const timer = setTimeout(async () => {
-          if (mode === 'create') return; // Don't hog the CPU while user is typing
-          if (!rawText.trim() || !modelReady || engineMode !== 'kokoro' || !ttsRef.current) return;
-
-          const sentences = splitIntoSentences(rawText);
-
-          if (!sentences.length) return;
-
-          // Generate first 2 sentences
-          try {
-            // 0
-            if (!cacheRef.current[0]) {
-              const url0 = await generateKokoroAudio(sentences[0]);
-              if (url0) cacheRef.current[0] = url0;
-            }
-            // 1
-            if (sentences[1] && !cacheRef.current[1]) {
-              await yieldIdle(100);
-              const url1 = await generateKokoroAudio(sentences[1]);
-              if (url1) cacheRef.current[1] = url1;
-            }
-          } catch (e) { }
-        }, 1500); // Debounce
-
-        return () => clearTimeout(timer);
-      }, [rawText, voice, speed, modelReady, engineMode, generateKokoroAudio, mode]);
+        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+        cacheRef.current = {};
+        prefetchRef.current.clear();
+      }, [voice, speed]);
 
       // Start story
       const startStory = async () => {
         const allSentences = splitIntoSentences(rawText);
         if (!allSentences.length) return;
-
-        // Note: We do NOT clear cache here anymore because background generator might have populated it.
-        // Cache is cleared by the useEffect above when settings change.
 
         setSentences(allSentences);
         const startIndex = showTitlePage ? -1 : 0;
@@ -1554,21 +1506,19 @@
           }
         }
 
-        // =============================================
-        // JIT STRATEGY: Only generate FIRST sentence
-        // This makes the app launch into reading mode much faster
-        // =============================================
-        if (ttsRef.current) {
+        // Check if story is already cached (from Download button)
+        // If it is, we don't need to generate anything - it's all ready
+        const isAlreadyCached = cacheRef.current[0] != null;
+
+        if (!isAlreadyCached && ttsRef.current) {
+          // Story NOT cached - generate just the first sentence for immediate playback
+          // No background caching - user should use Download button for full caching
           setModelStatus('Preparing first sentence...');
 
           try {
-            if (cacheRef.current[0]) {
-              // Already pre-buffered!
-            } else {
-              const firstSentence = allSentences[0];
-              const url = await generateKokoroAudio(firstSentence);
-              if (url) cacheRef.current[0] = url;
-            }
+            const firstSentence = allSentences[0];
+            const url = await generateKokoroAudio(firstSentence);
+            if (url) cacheRef.current[0] = url;
           } catch (e) {
             console.warn('Initial generation error:', e);
           }
@@ -1579,11 +1529,7 @@
         // Auto-read on entry (Title or First Sentence)
         setTimeout(() => playSentence(startIndex, allSentences), 600);
 
-        // Trigger background prefetch for the rest immediately
-        if (ttsRef.current && engineMode === 'kokoro') {
-          // Start prefetcing from index 1 (since 0 is done)
-          setTimeout(() => prefetch(1, allSentences), 50);
-        }
+        // NO background prefetching - audio is ONLY cached via Download button
       };
 
       useEffect(() => {
@@ -1909,7 +1855,7 @@
         const renderStoryCard = (story) => (
           <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group ${currentTheme.cardBg} ${story.status === 'processing' ? 'processing-card' : `border-2 ${currentTheme.border} hover:scale-[1.02]`}`}>
             <div className={`h-2 w-full ${VOICES.find(v => v.name === story.voice)?.color || 'bg-indigo-400'}`} />
-            <div className="px-6 pt-5 pb-6 flex flex-col justify-between" style={{height: 'calc(100% - 8px)'}}>
+            <div className="px-6 pt-5 pb-6 flex flex-col justify-between" style={{ height: 'calc(100% - 8px)' }}>
               <div>
                 {story.status === 'processing' && (
                   <div className="flex justify-end mb-2">
@@ -1922,11 +1868,20 @@
 
               <div className="flex items-center justify-between mt-4">
                 {story.status === 'processing' ? (
-                  <div className="flex-1 mr-4">
-                    <div className={`text-xs font-bold mb-1 ${currentTheme.highlightText}`}>Downloading... {story.progress}%</div>
-                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-100'}`}>
-                      <div className={`h-full ${currentTheme.progress} transition-all duration-300`} style={{ width: `${story.progress}%` }} />
+                  <div className="flex-1 mr-2 flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className={`text-xs font-bold mb-1 ${currentTheme.highlightText}`}>Downloading... {story.progress}%</div>
+                      <div className={`h-1.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-100'}`}>
+                        <div className={`h-full ${currentTheme.progress} transition-all duration-300`} style={{ width: `${story.progress}%` }} />
+                      </div>
                     </div>
+                    <button
+                      onClick={(e) => cancelDownload(story.id, e)}
+                      className={`p-2 rounded-full transition-colors flex-shrink-0 ${theme.includes('high-contrast') ? 'text-rose-400 hover:bg-white/10' : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'}`}
+                      title="Cancel download"
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
                 ) : story.status === 'cached' ? (
                   <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-500">
