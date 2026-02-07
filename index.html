@@ -3,8 +3,16 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Interactive touch stories for children with accessibility features." />
   <title>StoryTap — Touch Books for Little Ones</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -32,6 +40,22 @@
       margin: 0;
       overscroll-behavior: none;
       font-family: 'Nunito', sans-serif;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+      /* Prevents double-tap zoom on some devices */
+    }
+
+    input,
+    textarea {
+      -webkit-user-select: text;
+      /* Allow typing */
+      user-select: text;
+      touch-action: auto;
     }
 
     @keyframes breathe {
@@ -151,6 +175,16 @@
     .burst {
       animation: burst 1s ease-out forwards;
     }
+
+    @keyframes processingPulse {
+      0%, 100% { border-color: rgba(129, 140, 248, 0.3); }
+      50% { border-color: rgba(129, 140, 248, 1); }
+    }
+
+    .processing-card {
+      animation: processingPulse 2s ease-in-out infinite;
+      border-width: 3px;
+    }
   </style>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
@@ -161,7 +195,7 @@
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -186,26 +220,50 @@
       {
         id: 'default',
         label: 'Default',
-        desc: 'Dark ambient',
+        desc: 'Clean & Crisp',
         bg: 'from-slate-950 via-slate-900 to-slate-950',
         text: 'text-white',
         accent: 'indigo',
         progress: 'bg-indigo-500',
-        coverBg: 'from-indigo-900 via-purple-900 to-slate-900',
+        coverBg: 'from-indigo-950 via-slate-900 to-indigo-950',
         coverText: 'text-white',
-        coverSub: 'text-white/50',
+        coverSub: 'text-indigo-200',
         pulse: 'bg-white/10',
         coverBorder: 'border-white/10',
-        coverElementBg: 'bg-white/10',
+        coverElementBg: 'bg-white/5',
 
-        // Setup Screen
+        // PWA & Setup Screen
         pageBg: 'bg-slate-50',
         cardBg: 'bg-white',
         textMain: 'text-slate-900',
         textSub: 'text-slate-500',
-        border: 'border-slate-100',
+        border: 'border-slate-200',
         inputBg: 'bg-slate-50',
         highlight: 'indigo'
+      },
+      {
+        id: 'calm',
+        label: 'Calm Sky',
+        desc: 'Peaceful Blue',
+        bg: 'from-sky-50 via-blue-50 to-indigo-50',
+        text: 'text-slate-800',
+        accent: 'sky',
+        progress: 'bg-sky-500',
+        coverBg: 'from-sky-100 via-blue-50 to-indigo-50',
+        coverText: 'text-sky-900',
+        coverSub: 'text-sky-700',
+        pulse: 'bg-sky-500/10',
+        coverBorder: 'border-sky-200',
+        coverElementBg: 'bg-white/60',
+
+        // PWA & Setup Screen
+        pageBg: 'bg-slate-50',
+        cardBg: 'bg-white',
+        textMain: 'text-slate-700',
+        textSub: 'text-slate-400',
+        border: 'border-sky-100',
+        inputBg: 'bg-sky-50/20',
+        highlight: 'sky'
       },
       {
         id: 'high-contrast-wb',
@@ -222,7 +280,7 @@
         coverBorder: 'border-white',
         coverElementBg: 'bg-transparent',
 
-        // Setup Screen
+        // PWA & Setup Screen
         pageBg: 'bg-black',
         cardBg: 'bg-zinc-900',
         textMain: 'text-white',
@@ -233,8 +291,8 @@
       },
       {
         id: 'high-contrast-yb',
-        label: 'Yellow/Black',
-        desc: 'Yellow on Black',
+        label: 'Yellow on Black',
+        desc: 'Accessibility',
         bg: 'from-black to-black',
         text: 'text-yellow-400',
         accent: 'yellow',
@@ -246,7 +304,7 @@
         coverBorder: 'border-yellow-400',
         coverElementBg: 'bg-transparent',
 
-        // Setup Screen
+        // PWA & Setup Screen
         pageBg: 'bg-black',
         cardBg: 'bg-zinc-900',
         textMain: 'text-yellow-400',
@@ -254,31 +312,7 @@
         border: 'border-yellow-400',
         inputBg: 'bg-black',
         highlight: 'yellow'
-      },
-      {
-        id: 'cream',
-        label: 'Soft Cream',
-        desc: 'Gentle on eyes',
-        bg: 'from-amber-50 via-orange-50 to-amber-50',
-        text: 'text-amber-950',
-        accent: 'amber',
-        progress: 'bg-amber-600',
-        coverBg: 'from-amber-100 via-orange-50 to-amber-100',
-        coverText: 'text-amber-900',
-        coverSub: 'text-amber-700',
-        pulse: 'bg-amber-900/10',
-        coverBorder: 'border-amber-300',
-        coverElementBg: 'bg-amber-200/50',
-
-        // Setup Screen
-        pageBg: 'bg-amber-50',
-        cardBg: 'bg-amber-50/50',
-        textMain: 'text-amber-900',
-        textSub: 'text-amber-700',
-        border: 'border-amber-200',
-        inputBg: 'bg-white/50',
-        highlight: 'amber'
-      },
+      }
     ];
 
     // Optimized yield - use requestIdleCallback when available for non-urgent work
@@ -303,9 +337,6 @@
       return { isMobile, isSafari, isIOS, hasWebGPU, memory, cores };
     };
 
-    // =============================================
-    // INDEXEDDB AUDIO CACHE (Persistent across sessions)
-    // =============================================
     // =============================================
     // AUDIO CACHE SYSTEM (IndexedDB)
     // =============================================
@@ -430,7 +461,18 @@
       }, [vibrationEnabled]);
 
       const play = useCallback((type) => {
-        vibrate(type === 'tap' ? 25 : type === 'story_start' ? [40, 40, 80] : type === 'story_end' ? [80, 40, 80, 40, 150] : 15);
+        // Haptic patterns tailored for each cue type
+        const haptics = {
+          tap: 25,
+          story_start: [40, 40, 80],
+          story_end: [80, 40, 80, 40, 150],
+          ready: [60, 30, 60],        // Strong double-pulse: "your turn!"
+          advance: 20,
+          busy: [15, 15, 15],         // Quick triple-buzz: "wait"
+          cover_tap: [30, 20, 30],    // Gentle nudge
+          download_done: [50, 30, 80] // Celebration
+        };
+        vibrate(haptics[type] || 15);
 
         if (!enabled) return;
 
@@ -461,15 +503,43 @@
               osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.4);
             });
           } else if (type === 'ready') {
+            // Friendly two-tone "ding-ding" — clearly signals "your turn to tap!"
+            [698.46, 880].forEach((freq, i) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'sine';
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0, now + i * 0.15);
+              gain.gain.linearRampToValueAtTime(0.14, now + i * 0.15 + 0.02);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.15 + 0.35);
+              osc.connect(gain).connect(ctx.destination);
+              osc.start(now + i * 0.15); osc.stop(now + i * 0.15 + 0.4);
+            });
+          } else if (type === 'cover_tap') {
+            // Warm welcoming tone for the cover page
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = 698.46;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(523.25, now);
+            osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.15);
             gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.06, now + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+            gain.gain.linearRampToValueAtTime(0.1, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
             osc.connect(gain).connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.6);
+            osc.start(now); osc.stop(now + 0.35);
+          } else if (type === 'download_done') {
+            // Happy completion chime
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
+              const osc = ctx.createOscillator();
+              const gain = ctx.createGain();
+              osc.type = 'triangle';
+              osc.frequency.value = freq;
+              gain.gain.setValueAtTime(0, now + i * 0.08);
+              gain.gain.linearRampToValueAtTime(0.1, now + i * 0.08 + 0.02);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.08 + 0.3);
+              osc.connect(gain).connect(ctx.destination);
+              osc.start(now + i * 0.08); osc.stop(now + i * 0.08 + 0.35);
+            });
           } else if (type === 'advance') {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -514,14 +584,9 @@
     // =============================================
     // MAIN APPLICATION
     // =============================================
-    // Default constants
     const DEFAULT_STORY_TITLE = "The Brave Little Bear";
     const DEFAULT_STORY_TEXT = "Once upon a time, there was a little bear who lived in a cozy cave.\nThe bear loved honey more than anything in the world.\nOne sunny morning, the bear smelled something sweet.\nIt was coming from a tall, tall tree!\nThe bear looked up and saw a beehive.\nBuzz buzz buzz, sang the busy bees.\nThe little bear was scared, but also very hungry.\nSo the bear took a deep breath and started to climb.\nUp, up, up went the brave little bear!\nThe bees flew around, but the bear kept going.\nFinally, the bear reached the golden honey.\nYum yum yum! It was the sweetest honey ever.\nThe bear climbed down with a happy, sticky smile.\nAnd from that day on, everyone called the bear the bravest in the forest.\nThe end.";
     const STORAGE_KEY = 'storytap_prefs_v1';
-
-    // =============================================
-    // MAIN APPLICATION
-    // =============================================
     const App = () => {
       // Load preferences
       const prefs = useMemo(() => {
@@ -536,7 +601,7 @@
       const [sentences, setSentences] = useState([]);
       const [currentIndex, setCurrentIndex] = useState(-1);
       const [voice, setVoice] = useState(prefs.voice || VOICES[0].name);
-      const [speed, setSpeed] = useState(prefs.speed || 1.0);
+      const [speed, setSpeed] = useState(prefs.speed || 0.85);
       const [isTransitioning, setIsTransitioning] = useState(false);
 
       // Engine state
@@ -553,7 +618,6 @@
       const [editingId, setEditingId] = useState(null);
       const [showSettings, setShowSettings] = useState(false);
       // Library & Processing Queue
-      const [showLibrary, setShowLibrary] = useState(false);
       const [library, setLibrary] = useState(() => {
         try {
           const saved = JSON.parse(localStorage.getItem('storytap_library_v1')) || [];
@@ -562,7 +626,7 @@
             status: s.status || 'ready',
             progress: s.progress || 100,
             voice: s.voice || 'af_heart',
-            speed: s.speed || 1.0
+            speed: s.speed || 0.85
           }));
         }
         catch { return []; }
@@ -584,7 +648,7 @@
 
         const total = sentences.length;
         if (total === 0) {
-          setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'ready', progress: 100 } : s));
+          setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'cached', progress: 100 } : s));
           processingRef.current = null;
           return;
         }
@@ -605,17 +669,19 @@
         }
 
         if (processingRef.current === story.id) {
-          setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'ready', progress: 100 } : s));
+          setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'cached', progress: 100 } : s));
           processingRef.current = null;
+          playCue('download_done');
         }
       };
 
       useEffect(() => {
+        if (mode !== 'library') return; // Never cache while editing — too disruptive
         const task = library.find(s => s.status === 'processing');
         if (task && modelReady && ttsRef.current && (!processingRef.current || processingRef.current !== task.id)) {
           processStory(task);
         }
-      }, [library, modelReady]);
+      }, [library, modelReady, mode]);
 
       const createNewBook = () => {
         setStoryTitle('');
@@ -629,7 +695,7 @@
         setStoryTitle(story.title);
         setRawText(story.text);
         setVoice(story.voice || VOICES[0].name);
-        setSpeed(story.speed || 1.0);
+        setSpeed(story.speed || 0.85);
         setEditingId(story.id);
         setMode('create');
       };
@@ -642,8 +708,8 @@
           text: rawText,
           voice,
           speed,
-          status: 'processing',
-          progress: 0
+          status: 'ready',  // Save without auto-caching — user can Download to pre-cache
+          progress: 100
         };
 
         if (editingId) {
@@ -656,11 +722,11 @@
       };
 
       const loadBookForPlay = (story) => {
-        if (story.status !== 'ready' && story.status !== undefined) return; // Allow legacy/undefined
+        if (story.status === 'processing') return; // Block only while downloading
         setStoryTitle(story.title);
         setRawText(story.text);
         setVoice(story.voice || VOICES[0].name);
-        setSpeed(story.speed || 1.0);
+        setSpeed(story.speed || 0.85);
         setStoryToPlay(story);
       };
       const preloadBook = (story, e) => {
@@ -678,21 +744,23 @@
       const [vibrationEnabled, setVibrationEnabled] = useState(prefs.vibrationEnabled ?? true);
       const [theme, setTheme] = useState(prefs.theme || 'default');
       const [textSize, setTextSize] = useState(prefs.textSize || 'normal');
+      const [allowSkip, setAllowSkip] = useState(prefs.allowSkip ?? false);
 
       // Save preferences on change
       useEffect(() => {
         const toSave = {
           storyTitle, rawText, voice, speed,
-          soundCuesEnabled, vibrationEnabled, theme, textSize
+          soundCuesEnabled, vibrationEnabled, theme, textSize, allowSkip
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      }, [storyTitle, rawText, voice, speed, soundCuesEnabled, vibrationEnabled, theme, textSize]);
+      }, [storyTitle, rawText, voice, speed, soundCuesEnabled, vibrationEnabled, theme, textSize, allowSkip]);
 
       // Exit button hold state
       const [isHoldingExit, setIsHoldingExit] = useState(false);
       const [holdProgress, setHoldProgress] = useState(0);
       const holdTimerRef = useRef(null);
       const holdStartRef = useRef(null);
+      const lastInteractionRef = useRef(0);
 
       // Refs
       const ttsRef = useRef(null);
@@ -751,12 +819,18 @@
               }
             }
 
-            // On mobile/low-memory devices, use smallest model
-            if (device.isMobile || device.memory < 4) {
+            // Tiered model quality based on device capabilities
+            if (device.isMobile || device.memory < 4 || device.cores < 4) {
               dtype = 'q4';
               setModelStatus('Loading compact model...');
-            } else {
+            } else if (device.memory < 6 && !useWebGPU) {
+              dtype = 'q4';
+              setModelStatus('Loading optimized model...');
+            } else if (!useWebGPU) {
+              dtype = 'q8';
               setModelStatus('Loading high-quality model...');
+            } else {
+              setModelStatus('Loading premium model...');
             }
 
             console.log(`Loading Kokoro TTS: device=${useWebGPU ? 'webgpu' : 'wasm'}, dtype=${dtype}`);
@@ -869,38 +943,42 @@
       const prefetch = useCallback(async (startIdx, list) => {
         if (engineMode !== 'kokoro' || !ttsRef.current) return;
 
-        // Priority 1: Prefetch next 6 sentences from current position
-        for (let i = startIdx; i < Math.min(startIdx + 6, list.length); i++) {
+        const device = deviceInfoRef.current;
+        const isSlowDevice = device.isMobile || device.memory < 4 || device.cores < 4;
+
+        // Priority 1: CRITICAL — next 2 sentences with NO yielding (instant pipeline)
+        for (let i = startIdx; i < Math.min(startIdx + 2, list.length); i++) {
           if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
-
           prefetchRef.current.add(i);
-          await yieldIdle(10); // Minimal yield
-
           try {
             const url = await generateKokoroAudio(list[i]);
             if (url) cacheRef.current[i] = url;
-          } catch (e) {
-            console.warn('Prefetch error:', e);
-          }
-
+          } catch (e) { console.warn('Prefetch P1 error:', e); }
           prefetchRef.current.delete(i);
         }
 
-        // Priority 2: Fill any remaining gaps in the story
-        // This runs after the immediate prefetch is done
-        for (let i = 0; i < list.length; i++) {
+        // Priority 2: Look-ahead buffer — next 4-8 sentences with minimal yielding
+        const lookAhead = isSlowDevice ? 4 : 8;
+        for (let i = startIdx + 2; i < Math.min(startIdx + 2 + lookAhead, list.length); i++) {
           if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
-
           prefetchRef.current.add(i);
-          await yieldIdle(50); // Slightly longer yield for gap-filling
-
+          await yieldIdle(5);
           try {
             const url = await generateKokoroAudio(list[i]);
             if (url) cacheRef.current[i] = url;
-          } catch (e) {
-            console.warn('Gap-fill error:', e);
-          }
+          } catch (e) { console.warn('Prefetch P2 error:', e); }
+          prefetchRef.current.delete(i);
+        }
 
+        // Priority 3: Fill remaining gaps during true idle time (background)
+        for (let i = 0; i < list.length; i++) {
+          if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
+          prefetchRef.current.add(i);
+          await yieldIdle(isSlowDevice ? 80 : 30);
+          try {
+            const url = await generateKokoroAudio(list[i]);
+            if (url) cacheRef.current[i] = url;
+          } catch (e) { console.warn('Prefetch P3 error:', e); }
           prefetchRef.current.delete(i);
         }
       }, [engineMode, generateKokoroAudio]);
@@ -966,8 +1044,17 @@
         if (currentIndex >= 0 && currentIndex < sentences.length) {
           playCue('ready');
 
+          // Pre-load next sentence audio for instant playback on next tap
+          const nextIdx = currentIndex + 1;
+          if (nextIdx < sentences.length) {
+            const nextUrl = cacheRef.current[nextIdx];
+            if (nextUrl && audioRef.current) {
+              audioRef.current.src = nextUrl;
+              audioRef.current.load(); // Force browser to decode audio ahead of time
+            }
+          }
+
           // Continue prefetching while waiting for next tap
-          // This fills the buffer during the "ready for next" state
           if (engineMode === 'kokoro' && ttsRef.current) {
             prefetch(currentIndex + 1, sentences);
           }
@@ -976,6 +1063,7 @@
 
       // Exit button hold logic
       const startHoldExit = (e) => {
+        e.preventDefault(); // Prevent synthesized mouse events from reaching parent
         e.stopPropagation();
         setIsHoldingExit(true);
         holdStartRef.current = Date.now();
@@ -1007,9 +1095,23 @@
       // Main tap handler
       const handleTap = useCallback(() => {
         if (isGenerating || isTransitioning) { playCue('busy'); return; }
-        if (isPlaying) { playCue('busy'); return; }
 
-        playCue('tap');
+        if (isPlaying) {
+          if (!allowSkip) { playCue('busy'); return; }
+          // Skip mode: stop current audio and continue to advance
+          if (audioRef.current) {
+            try { audioRef.current.pause(); audioRef.current.currentTime = 0; } catch (e) { }
+          }
+          window.speechSynthesis?.cancel();
+          setIsPlaying(false);
+        }
+
+        // Context-aware tap cue
+        if (currentIndex === -1) {
+          playCue('cover_tap');
+        } else {
+          playCue('tap');
+        }
         setIsTransitioning(true);
 
         const nextIndex = currentIndex + 1;
@@ -1029,7 +1131,7 @@
             setCurrentIndex(0);
             playSentence(0, sentences);
             setIsTransitioning(false);
-          }, 500);
+          }, 300); // Reduced from 500ms for snappier start
           return;
         }
 
@@ -1038,7 +1140,7 @@
           setTimeout(() => {
             setCurrentIndex(sentences.length);
             setIsTransitioning(false);
-          }, 100);
+          }, 80); // Reduced from 100ms
           return;
         }
 
@@ -1047,8 +1149,23 @@
           setCurrentIndex(nextIndex);
           playSentence(nextIndex, sentences);
           setIsTransitioning(false);
-        }, 150);
-      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, playCue, playSentence]);
+        }, 80); // Reduced from 150ms — much snappier page turns
+      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence]);
+
+      // Ultra-responsive touch handler for accessibility
+      // Fires on the SLIGHTEST contact — any finger count, any pressure
+      // Uses touchstart (not click) for zero-delay response
+      const handleInteraction = useCallback((e) => {
+        // Prevent all default browser behaviors (scrolling, zooming, pull-to-refresh, text selection)
+        e.preventDefault();
+
+        // Debounce: touchstart + synthesized mousedown can double-fire
+        const now = Date.now();
+        if (now - lastInteractionRef.current < 180) return;
+        lastInteractionRef.current = now;
+
+        handleTap();
+      }, [handleTap]);
 
       // Start story
       // Background Pre-generation of First Page (Sentence 0 & 1)
@@ -1062,6 +1179,7 @@
         clearCache();
 
         const timer = setTimeout(async () => {
+          if (mode === 'create') return; // Don't hog the CPU while user is typing
           if (!rawText.trim() || !modelReady || engineMode !== 'kokoro' || !ttsRef.current) return;
 
           const sentences = [];
@@ -1090,7 +1208,7 @@
         }, 1500); // Debounce
 
         return () => clearTimeout(timer);
-      }, [rawText, voice, speed, modelReady, engineMode, generateKokoroAudio]);
+      }, [rawText, voice, speed, modelReady, engineMode, generateKokoroAudio, mode]);
 
       // Start story
       const startStory = async () => {
@@ -1215,6 +1333,22 @@
                 </button>
               </div>
 
+              {/* Allow Skip */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-sky-100'}`}>
+                    <SkipForward size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-sky-600'} />
+                  </div>
+                  <div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Allow Skip</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Tap to skip during playback</div>
+                  </div>
+                </div>
+                <button onClick={() => setAllowSkip(!allowSkip)} className={`w-14 h-8 rounded-full transition-colors relative ${allowSkip ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !allowSkip ? 'bg-zinc-700' : ''}`}>
+                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${allowSkip ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                </button>
+              </div>
+
               {/* Visual Theme */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -1284,40 +1418,6 @@
         </div>
       );
 
-      const LibraryModal = () => (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowLibrary(false)}>
-          <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col ${currentTheme.border} border`} onClick={e => e.stopPropagation()}>
-            <div className={`p-6 border-b ${currentTheme.border} flex items-center justify-between`}>
-              <h2 className={`text-xl font-bold ${currentTheme.textMain}`}>My Library</h2>
-              <button onClick={() => setShowLibrary(false)} className={`p-2 rounded-full transition-colors ${currentTheme.textSub} hover:bg-black/5`}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="p-4 overflow-y-auto space-y-3 flex-1">
-              {library.length === 0 ? (
-                <div className={`text-center py-10 ${currentTheme.textSub} opacity-60`}>
-                  <BookOpen size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>No saved stories yet.</p>
-                  <p className="text-sm mt-2">Save your current story to find it here later.</p>
-                </div>
-              ) : (
-                library.map(story => (
-                  <div key={story.id} onClick={() => loadFromLibrary(story)} className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${currentTheme.cardBg} ${currentTheme.border} hover:shadow-md hover:border-${currentTheme.highlight}-300`}>
-                    <div>
-                      <div className={`font-bold ${currentTheme.textMain}`}>{story.title}</div>
-                      <div className={`text-xs ${currentTheme.textSub} mt-1 line-clamp-1`}>{story.text.substring(0, 50)}...</div>
-                    </div>
-                    <button onClick={(e) => deleteFromLibrary(story.id, e)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      );
-
       // =============================================
       // LOADING SCREEN
       // =============================================
@@ -1362,7 +1462,7 @@
                 </div>
                 <h1 className={`text-3xl font-bold font-serif ${currentTheme.textMain} tracking-tight`}>StoryTap</h1>
               </div>
-              <button onClick={() => setShowSettings(true)} className={`p-3 rounded-xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
+              <button onClick={() => setShowSettings(true)} className={`p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
                 <Settings size={22} />
               </button>
             </header>
@@ -1376,12 +1476,12 @@
               </button>
 
               {library.map(story => (
-                <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all hover:scale-[1.02] cursor-pointer group ${currentTheme.cardBg} border ${currentTheme.border}`}>
+                <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group ${currentTheme.cardBg} ${story.status === 'processing' ? 'processing-card' : `border ${currentTheme.border} hover:scale-[1.02]`}`}>
                   <div className={`h-1/2 bg-gradient-to-br ${VOICES.find(v => v.name === story.voice)?.color || 'from-indigo-400 to-purple-500'} p-6 flex flex-col justify-between`}>
                     <div className="flex justify-between items-start w-full">
                       <span className="text-4xl shadow-sm filter drop-shadow-md">{VOICES.find(v => v.name === story.voice)?.emoji || '📖'}</span>
                       {story.status === 'processing' && (
-                        <Loader2 className="text-white animate-spin" size={20} />
+                        <Loader2 className="text-white animate-spin" size={24} />
                       )}
                     </div>
                   </div>
@@ -1394,22 +1494,31 @@
                     <div className="flex items-center justify-between mt-4">
                       {story.status === 'processing' ? (
                         <div className="flex-1 mr-4">
-                          <div className={`text-xs font-bold mb-1 text-${currentTheme.highlight}-600`}>Creating Magic... {story.progress}%</div>
+                          <div className={`text-xs font-bold mb-1 text-${currentTheme.highlight}-600`}>Downloading... {story.progress}%</div>
                           <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
                             <div className={`h-full bg-${currentTheme.highlight}-500 transition-all duration-300`} style={{ width: `${story.progress}%` }} />
                           </div>
                         </div>
+                      ) : story.status === 'cached' ? (
+                        <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-500">
+                          <Check size={12} strokeWidth={3} /> Cached &amp; Ready
+                        </div>
                       ) : (
                         <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>
-                          <Play size={12} fill="currentColor" /> Ready to Read
+                          <Play size={12} fill="currentColor" /> Tap to Read
                         </div>
                       )}
 
                       <div className="flex items-center -mr-2">
-                        {story.status !== 'processing' && (
-                          <button onClick={(e) => preloadBook(story, e)} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" title="Pre-load Audio">
+                        {story.status !== 'processing' && story.status !== 'cached' && (
+                          <button onClick={(e) => preloadBook(story, e)} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" title="Download audio for faster playback">
                             <Download size={18} />
                           </button>
+                        )}
+                        {story.status === 'cached' && (
+                          <div className="p-2 text-emerald-400" title="Audio cached">
+                            <Download size={18} />
+                          </div>
                         )}
                         <button onClick={(e) => editBook(story, e)} className="p-2 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors" title="Edit Story">
                           <Pencil size={18} />
@@ -1420,9 +1529,6 @@
                       </div>
                     </div>
                   </div>
-                  {story.status === 'processing' && (
-                    <div className="absolute inset-0 bg-white/20 backdrop-blur-[1px] cursor-wait" onClick={e => e.stopPropagation()} />
-                  )}
                 </div>
               ))}
             </div>
@@ -1430,12 +1536,6 @@
         );
       }
 
-      // =============================================
-      // PARENT SETUP SCREEN
-      // =============================================
-      // =============================================
-      // PARENT SETUP SCREEN
-      // =============================================
       // =============================================
       // CREATE BOOK SCREEN
       // =============================================
@@ -1445,7 +1545,6 @@
         return (
           <div className={`min-h-screen ${currentTheme.pageBg} p-4 md:p-8 transition-colors duration-300`}>
             {showSettings && <SettingsModal />}
-            {showLibrary && <LibraryModal />}
 
             <div className="max-w-2xl mx-auto space-y-6">
               <header className="flex items-center justify-between mb-8">
@@ -1474,15 +1573,15 @@
                 </div>
               )}
 
-              <div className={`${currentTheme.cardBg} rounded-[2rem] shadow-xl p-6 md:p-8 space-y-8 border ${currentTheme.border} transition-colors`}>
+              <div className={`${currentTheme.cardBg} rounded-3xl shadow-xl p-6 md:p-8 space-y-8 border ${currentTheme.border} transition-colors`}>
                 <div className="space-y-2">
                   <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Title</label>
-                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Once Upon a Time..." />
+                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-2xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Once Upon a Time..." />
                 </div>
 
                 <div className="space-y-2">
                   <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
-                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Paste or type your story here..." />
+                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-2xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Paste or type your story here..." />
                 </div>
 
                 <div className="space-y-3">
@@ -1510,7 +1609,7 @@
                     {SPEEDS.map(s => {
                       const Icon = s.icon;
                       return (
-                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-xl border-2 text-center transition-all ${speed === s.value ? `border-${currentTheme.highlight}-500 ${isHighContrast ? currentTheme.textMain : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
+                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-2xl border-2 text-center transition-all ${speed === s.value ? `border-${currentTheme.highlight}-500 ${isHighContrast ? currentTheme.textMain : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
                           <Icon size={20} className="mx-auto mb-1" />
                           <div className="font-bold text-sm">{s.label}</div>
                         </button>
@@ -1519,9 +1618,9 @@
                   </div>
                 </div>
 
-                <button onClick={saveCreatedBook} disabled={!rawText.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white shadow-indigo-200'}`}>
+                <button onClick={saveCreatedBook} disabled={!rawText.trim() || !storyTitle.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white shadow-indigo-200'}`}>
                   <Sparkles fill={isHighContrast ? "currentColor" : "white"} size={24} />
-                  {editingId ? 'Update & Reprocess' : 'Create Magic Book'}
+                  {editingId ? 'Save Changes' : 'Save Book'}
                 </button>
               </div>
             </div>
@@ -1538,8 +1637,19 @@
       const progress = sentences.length ? ((currentIndex + 1) / sentences.length) * 100 : 0;
 
       return (
-        <div onClick={handleTap} className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden">
-          <audio ref={audioRef} onEnded={handleAudioEnded} hidden />
+        <div
+          onTouchStart={handleInteraction}
+          onTouchMove={(e) => e.preventDefault()}
+          onMouseDown={handleInteraction}
+          onContextMenu={(e) => e.preventDefault()}
+          onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleInteraction(e); }}}
+          className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden"
+          role="button"
+          tabIndex={0}
+          aria-label={isCover ? 'Tap anywhere to begin the story' : isEnd ? 'Tap to start over' : `Sentence ${currentIndex + 1} of ${sentences.length}. Tap for next.`}
+          aria-live="polite"
+        >
+          <audio ref={audioRef} onEnded={handleAudioEnded} preload="auto" hidden />
 
           <div className="absolute top-4 left-4 z-50">
             <button onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit} onTouchStart={startHoldExit} onTouchEnd={endHoldExit} onTouchCancel={endHoldExit} className="relative p-3 bg-white/10 hover:bg-white/20 rounded-full text-white/40 hover:text-white/70 transition-all">
@@ -1629,6 +1739,15 @@
     };
 
     createRoot(document.getElementById('root')).render(<App />);
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(registration => console.log('SW registered: ', registration.scope))
+          .catch(registrationError => console.log('SW registration failed: ', registrationError));
+      });
+    }
   </script>
 </body>
 
