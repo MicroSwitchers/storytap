@@ -514,6 +514,7 @@
       const cacheRef = useRef({});
       const prefetchRef = useRef(new Set());
       const deviceInfoRef = useRef(getDeviceInfo());
+      const initPromiseRef = useRef(null);
 
       const { play: playCue } = useAudioCues(soundCuesEnabled, vibrationEnabled);
       const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
@@ -533,71 +534,83 @@
           return true;
         }
 
-        const device = deviceInfoRef.current;
-        setLoadError(null);
-        setModelProgress(0);
-        setModelStatus('Initializing...');
+        if (initPromiseRef.current) return initPromiseRef.current;
 
-        try {
-          await yieldToBrowser();
+        initPromiseRef.current = (async () => {
+          const device = deviceInfoRef.current;
+          setLoadError(null);
+          setModelProgress(0);
+          setModelStatus('Initializing...');
 
-          // Determine optimal settings based on device
-          let useWebGPU = false;
-          let dtype = 'q8'; // Default to q8 for stability
+          try {
+            await yieldToBrowser();
 
-          // Only try WebGPU on desktop Chrome/Edge with good specs
-          if (!device.isMobile && !device.isSafari && device.hasWebGPU && device.memory >= 8) {
-            try {
-              const adapter = await navigator.gpu.requestAdapter();
-              if (adapter) {
-                const gpuDevice = await adapter.requestDevice();
-                gpuDevice.destroy();
-                useWebGPU = true;
-                dtype = 'fp32';
-                setModelStatus('Using GPU acceleration...');
-              }
-            } catch (e) {
-              console.warn('WebGPU not available:', e);
-            }
-          }
+            // Determine optimal settings based on device
+            let useWebGPU = false;
+            let dtype = 'q8'; // Default to q8 for stability
 
-          // On mobile/low-memory devices, use smallest model
-          if (device.isMobile || device.memory < 4) {
-            dtype = 'q4';
-            setModelStatus('Loading compact model...');
-          } else {
-            setModelStatus('Loading high-quality model...');
-          }
-
-          console.log(`Loading Kokoro TTS: device=${useWebGPU ? 'webgpu' : 'wasm'}, dtype=${dtype}`);
-
-          const tts = await KokoroTTS.from_pretrained(MODEL_ID, {
-            dtype,
-            device: useWebGPU ? 'webgpu' : 'wasm',
-            progress_callback: (p) => {
-              if (p.status === 'progress' && p.total) {
-                const pct = Math.round((p.loaded / p.total) * 100);
-                setModelProgress(pct);
-                if (pct < 30) setModelStatus('Downloading voice model...');
-                else if (pct < 70) setModelStatus('Preparing voice engine...');
-                else if (pct < 95) setModelStatus('Almost ready...');
-                else setModelStatus('Finalizing...');
+            // Only try WebGPU on desktop Chrome/Edge with good specs
+            if (!device.isMobile && !device.isSafari && device.hasWebGPU && device.memory >= 8) {
+              try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (adapter) {
+                  const gpuDevice = await adapter.requestDevice();
+                  gpuDevice.destroy();
+                  useWebGPU = true;
+                  dtype = 'fp32';
+                  setModelStatus('Using GPU acceleration...');
+                }
+              } catch (e) {
+                console.warn('WebGPU not available:', e);
               }
             }
-          });
 
-          ttsRef.current = tts;
-          setModelReady(true);
-          setEngineMode('kokoro');
-          console.log('Kokoro TTS loaded successfully');
-          return true;
+            // On mobile/low-memory devices, use smallest model
+            if (device.isMobile || device.memory < 4) {
+              dtype = 'q4';
+              setModelStatus('Loading compact model...');
+            } else {
+              setModelStatus('Loading high-quality model...');
+            }
 
-        } catch (error) {
-          console.error('Kokoro TTS failed to load:', error);
-          setLoadError(`Voice engine error: ${error.message || 'Unknown error'}`);
-          return false;
-        }
+            console.log(`Loading Kokoro TTS: device=${useWebGPU ? 'webgpu' : 'wasm'}, dtype=${dtype}`);
+
+            const tts = await KokoroTTS.from_pretrained(MODEL_ID, {
+              dtype,
+              device: useWebGPU ? 'webgpu' : 'wasm',
+              progress_callback: (p) => {
+                if (p.status === 'progress' && p.total) {
+                  const pct = Math.round((p.loaded / p.total) * 100);
+                  setModelProgress(pct);
+                  if (pct < 30) setModelStatus('Downloading voice model...');
+                  else if (pct < 70) setModelStatus('Preparing voice engine...');
+                  else if (pct < 95) setModelStatus('Almost ready...');
+                  else setModelStatus('Finalizing...');
+                }
+              }
+            });
+
+            ttsRef.current = tts;
+            setModelReady(true);
+            setEngineMode('kokoro');
+            console.log('Kokoro TTS loaded successfully');
+            return true;
+
+          } catch (error) {
+            console.error('Kokoro TTS failed to load:', error);
+            setLoadError(`Voice engine error: ${error.message || 'Unknown error'}`);
+            initPromiseRef.current = null; // Reset promise on error so we can retry
+            return false;
+          }
+        })();
+
+        return initPromiseRef.current;
       }, []);
+
+      // Auto-init on mount
+      useEffect(() => {
+        loadKokoroModel();
+      }, [loadKokoroModel]);
 
       // Generate audio with Kokoro + persistent cache
       const generateKokoroAudio = useCallback(async (text) => {
@@ -840,6 +853,7 @@
       }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, playCue, playSentence]);
 
       // Start story
+      // Start story
       const startStory = async () => {
         const allSentences = [];
         rawText.split('\n').forEach(line => {
@@ -850,7 +864,7 @@
         });
         if (!allSentences.length) return;
 
-        // Clear old cache
+        // Clear old cache safely
         Object.values(cacheRef.current).forEach(url => {
           try { URL.revokeObjectURL(url); } catch (e) { }
         });
@@ -861,11 +875,10 @@
         setCurrentIndex(-1);
         setMode('loading');
 
-        // Load model if needed
+        // Ensure model is loaded (should be already due to auto-init)
         if (!ttsRef.current) {
           const success = await loadKokoroModel();
           if (!success) {
-            // Fall back to Web Speech - no warm-up needed
             setEngineMode('fallback');
             setModelReady(true);
             setMode('reading');
@@ -874,36 +887,29 @@
         }
 
         // =============================================
-        // WARM-UP PHASE: Pre-generate first sentences
-        // This gives slower devices a ~10 second head start
+        // JIT STRATEGY: Only generate FIRST sentence
+        // This makes the app launch into reading mode much faster
         // =============================================
         if (ttsRef.current) {
-          const WARMUP_COUNT = Math.min(5, allSentences.length); // Pre-generate up to 5 sentences
-          setModelStatus('Warming up voice...');
+          setModelStatus('Preparing first sentence...');
 
-          for (let i = 0; i < WARMUP_COUNT; i++) {
-            setModelProgress(Math.round(((i + 1) / WARMUP_COUNT) * 100));
-            setModelStatus(`Preparing sentence ${i + 1} of ${WARMUP_COUNT}...`);
-
-            try {
-              const url = await generateKokoroAudio(allSentences[i]);
-              if (url) cacheRef.current[i] = url;
-            } catch (e) {
-              console.warn('Warm-up generation error:', e);
-            }
-
-            await yieldToBrowser(); // Allow UI to update
+          try {
+            // Check cache first (incase we are restarting same story)
+            // But we cleared cache above, so this is for robustness
+            const firstSentence = allSentences[0];
+            const url = await generateKokoroAudio(firstSentence);
+            if (url) cacheRef.current[0] = url;
+          } catch (e) {
+            console.warn('Initial generation error:', e);
           }
-
-          setModelStatus('Ready to read!');
-          await new Promise(r => setTimeout(r, 500)); // Brief pause to show "Ready"
         }
 
         setMode('reading');
 
-        // Continue prefetching remaining sentences in background
+        // Trigger background prefetch for the rest immediately
         if (ttsRef.current && engineMode === 'kokoro') {
-          setTimeout(() => prefetch(5, allSentences), 100);
+          // Start prefetcing from index 1 (since 0 is done)
+          setTimeout(() => prefetch(1, allSentences), 50);
         }
       };
 
