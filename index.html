@@ -177,15 +177,52 @@
     }
 
     @keyframes processingPulse {
-      0%, 100% { border-color: rgba(129, 140, 248, 0.3); }
-      50% { border-color: rgba(129, 140, 248, 1); }
+
+      0%,
+      100% {
+        border-color: rgba(129, 140, 248, 0.3);
+      }
+
+      50% {
+        border-color: rgba(129, 140, 248, 1);
+      }
     }
 
     .processing-card {
       animation: processingPulse 2s ease-in-out infinite;
       border-width: 3px;
     }
+
+    /* Custom Scrollbar for Settings */
+    .settings-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .settings-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .settings-scroll::-webkit-scrollbar-thumb {
+      background-color: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      border: 2px solid transparent;
+      background-clip: content-box;
+    }
+
+    .settings-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    /* High contrast scrollbar override */
+    .high-contrast .settings-scroll::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .high-contrast .settings-scroll::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(255, 255, 255, 0.6);
+    }
   </style>
+  <script src="quickstories.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
@@ -195,7 +232,7 @@
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, PenTool } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -204,16 +241,19 @@
     // CONFIGURATION
     // =============================================
     const VOICES = [
-      { name: "af_heart", label: "Gentle", desc: "Warm bedtime voice", emoji: "🌙", color: "from-violet-500 to-purple-600" },
-      { name: "af_sky", label: "Cheerful", desc: "Bright & happy", emoji: "☀️", color: "from-amber-400 to-orange-500" },
-      { name: "bf_lily", label: "Soft", desc: "Calm & soothing", emoji: "🌸", color: "from-pink-400 to-rose-500" },
-      { name: "am_puck", label: "Playful", desc: "Fun & silly", emoji: "🎭", color: "from-emerald-400 to-teal-500" },
+      { name: "af_heart", label: "Warm & Gentle", desc: "Best for bedtime", emoji: "🌙", color: "bg-violet-500" },
+      { name: "af_sky", label: "Bright & Cheerful", desc: "Great for adventure", emoji: "☀️", color: "bg-amber-400" },
+      { name: "bf_lily", label: "Soft & British", desc: "Classic fairy tales", emoji: "🌸", color: "bg-pink-400" },
+      { name: "am_puck", label: "Playful & Fun", desc: "Silly stories", emoji: "🎭", color: "bg-emerald-400" },
+      { name: "am_fenrir", label: "Deep & Mysterious", desc: "Legends and myths", emoji: "🐺", color: "bg-slate-600" },
+      { name: "af_bella", label: "Rich & Expressive", desc: "Epic tales", emoji: "✨", color: "bg-fuchsia-500" },
     ];
 
     const SPEEDS = [
-      { label: "Slow & Cozy", value: 0.85, icon: Moon },
-      { label: "Just Right", value: 1.0, icon: Heart },
-      { label: "Energetic", value: 1.15, icon: Sun },
+      { label: "Storytelling", value: 0.75, icon: Moon, desc: "Perfect for kids" },
+      { label: "Relaxed", value: 0.9, icon: Heart, desc: "Calm & steady" },
+      { label: "Natural", value: 1.0, icon: Sun, desc: "Standard pace" },
+      { label: "Brisk", value: 1.15, icon: Sparkles, desc: "Energetic" },
     ];
 
     const THEMES = [
@@ -221,64 +261,107 @@
         id: 'default',
         label: 'Default',
         desc: 'Clean & Crisp',
-        bg: 'from-slate-950 via-slate-900 to-slate-950',
+        bg: 'bg-slate-900', // Flat
         text: 'text-white',
         accent: 'indigo',
         progress: 'bg-indigo-500',
-        coverBg: 'from-indigo-950 via-slate-900 to-indigo-950',
+        coverBg: 'bg-slate-900', // Flat
         coverText: 'text-white',
         coverSub: 'text-indigo-200',
         pulse: 'bg-white/10',
-        coverBorder: 'border-white/10',
+        coverBorder: 'border-white', // High Contrast
         coverElementBg: 'bg-white/5',
+        readingDark: true,
 
         // PWA & Setup Screen
         pageBg: 'bg-slate-50',
         cardBg: 'bg-white',
         textMain: 'text-slate-900',
-        textSub: 'text-slate-500',
-        border: 'border-slate-200',
+        textSub: 'text-slate-700',
+        border: 'border-slate-300',
         inputBg: 'bg-slate-50',
-        highlight: 'indigo'
+        highlight: 'indigo',
+        highlightBorder: 'border-indigo-500',
+        highlightBgLight: 'bg-indigo-50',
+        highlightFocus: 'focus:border-indigo-500',
+        highlightRing: 'ring-indigo-200',
+        highlightText: 'text-indigo-600'
+      },
+      {
+        id: 'buff',
+        label: 'Buff',
+        desc: 'Easy on Eyes',
+        bg: 'bg-[#F0EAD6]', // Buff Color
+        text: 'text-black', // Black text
+        accent: 'stone',
+        progress: 'bg-black', // Black progress
+        coverBg: 'bg-[#F0EAD6]', // Buff Color
+        coverText: 'text-black', // Black text
+        coverSub: 'text-stone-800', // Dark subtext
+        pulse: 'bg-black/10',
+        coverBorder: 'border-black', // Black border
+        coverElementBg: 'bg-white/40',
+        readingDark: false,
+
+        // PWA & Setup Screen
+        pageBg: 'bg-[#F5F5DC]', // Beige
+        cardBg: 'bg-[#F0EAD6]', // Buff
+        textMain: 'text-black', // Black text
+        textSub: 'text-stone-800',
+        border: 'border-black',
+        inputBg: 'bg-white',
+        highlight: 'stone',
+        highlightBorder: 'border-stone-500',
+        highlightBgLight: 'bg-stone-100',
+        highlightFocus: 'focus:border-stone-500',
+        highlightRing: 'ring-stone-300',
+        highlightText: 'text-stone-700'
       },
       {
         id: 'calm',
         label: 'Calm Sky',
         desc: 'Peaceful Blue',
-        bg: 'from-sky-50 via-blue-50 to-indigo-50',
-        text: 'text-slate-800',
+        bg: 'bg-blue-50', // Flat
+        text: 'text-slate-900', // Darker text for contrast on light bg
         accent: 'sky',
-        progress: 'bg-sky-500',
-        coverBg: 'from-sky-100 via-blue-50 to-indigo-50',
-        coverText: 'text-sky-900',
-        coverSub: 'text-sky-700',
+        progress: 'bg-sky-600',
+        coverBg: 'bg-sky-100', // Flat
+        coverText: 'text-sky-950',
+        coverSub: 'text-sky-950', // Darker
         pulse: 'bg-sky-500/10',
-        coverBorder: 'border-sky-200',
+        coverBorder: 'border-sky-900', // High Contrast
         coverElementBg: 'bg-white/60',
+        readingDark: false,
 
         // PWA & Setup Screen
         pageBg: 'bg-slate-50',
         cardBg: 'bg-white',
-        textMain: 'text-slate-700',
-        textSub: 'text-slate-400',
-        border: 'border-sky-100',
-        inputBg: 'bg-sky-50/20',
-        highlight: 'sky'
+        textMain: 'text-slate-900',
+        textSub: 'text-slate-700',
+        border: 'border-sky-700', // Darker for contrast
+        inputBg: 'bg-sky-50',
+        highlight: 'sky',
+        highlightBorder: 'border-sky-500',
+        highlightBgLight: 'bg-sky-50',
+        highlightFocus: 'focus:border-sky-500',
+        highlightRing: 'ring-sky-200',
+        highlightText: 'text-sky-600'
       },
       {
         id: 'high-contrast-wb',
         label: 'High Contrast',
         desc: 'White on Black',
-        bg: 'from-black to-black',
+        bg: 'bg-black', // Flat
         text: 'text-white',
         accent: 'white',
         progress: 'bg-white',
-        coverBg: 'from-black to-black',
+        coverBg: 'bg-black', // Flat
         coverText: 'text-white',
         coverSub: 'text-white',
         pulse: 'bg-white/20',
         coverBorder: 'border-white',
         coverElementBg: 'bg-transparent',
+        readingDark: true,
 
         // PWA & Setup Screen
         pageBg: 'bg-black',
@@ -287,22 +370,28 @@
         textSub: 'text-slate-300',
         border: 'border-white',
         inputBg: 'bg-black',
-        highlight: 'white'
+        highlight: 'white',
+        highlightBorder: 'border-white',
+        highlightBgLight: 'bg-white/10',
+        highlightFocus: 'focus:border-white',
+        highlightRing: 'ring-white/30',
+        highlightText: 'text-white'
       },
       {
         id: 'high-contrast-yb',
         label: 'Yellow on Black',
         desc: 'Accessibility',
-        bg: 'from-black to-black',
+        bg: 'bg-black', // Flat
         text: 'text-yellow-400',
         accent: 'yellow',
         progress: 'bg-yellow-400',
-        coverBg: 'from-black via-zinc-900 to-black',
+        coverBg: 'bg-black', // Flat
         coverText: 'text-yellow-400',
         coverSub: 'text-yellow-400/80',
         pulse: 'bg-yellow-400/20',
         coverBorder: 'border-yellow-400',
         coverElementBg: 'bg-transparent',
+        readingDark: true,
 
         // PWA & Setup Screen
         pageBg: 'bg-black',
@@ -311,7 +400,12 @@
         textSub: 'text-yellow-200',
         border: 'border-yellow-400',
         inputBg: 'bg-black',
-        highlight: 'yellow'
+        highlight: 'yellow',
+        highlightBorder: 'border-yellow-400',
+        highlightBgLight: 'bg-yellow-400/10',
+        highlightFocus: 'focus:border-yellow-400',
+        highlightRing: 'ring-yellow-200',
+        highlightText: 'text-yellow-400'
       }
     ];
 
@@ -419,7 +513,7 @@
 
     // Create a hash key for caching (text + voice + speed + version)
     // Version 2: Fixed chunking bug - invalidates old partial audio
-    const CACHE_VERSION = 2;
+    const CACHE_VERSION = 3; // Bumped: invalidates old entries with bad elongated-letter audio
     const getCacheKey = (text, voice, speed) => {
       const str = `v${CACHE_VERSION}|${text}|${voice}|${speed}`;
       let hash = 0;
@@ -430,12 +524,99 @@
       return `audio_${hash}`;
     };
 
+    // Get cache statistics (item count + total blob size)
+    const getCacheStats = async () => {
+      try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const countReq = store.count();
+          let totalSize = 0;
+          const cursorReq = store.openCursor();
+          cursorReq.onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+              if (cursor.value.blob) totalSize += cursor.value.blob.size || 0;
+              cursor.continue();
+            }
+          };
+          tx.oncomplete = () => resolve({ count: countReq.result, totalSize });
+          tx.onerror = () => resolve({ count: 0, totalSize: 0 });
+        });
+      } catch (e) { return { count: 0, totalSize: 0 }; }
+    };
+
+    // Delete ALL cached audio data from IndexedDB (all sessions)
+    const clearAllCachedAudio = async () => {
+      try {
+        await new Promise((resolve, reject) => {
+          const request = indexedDB.deleteDatabase(DB_NAME);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+        // Also clear any Service Worker caches that may contain voice data
+        if ('caches' in window) {
+          const names = await caches.keys();
+          await Promise.all(names.map(name => caches.delete(name)));
+        }
+        return true;
+      } catch (e) { return false; }
+    };
+
     // =============================================
     // TEXT OPTIMIZATION FOR FASTER TTS
     // =============================================
     // Clean text for TTS processing
+    // Clean text for TTS processing - Added Flow & Cadence Enhancements
+    // Clean text for TTS processing - MAXIMIZE PAUSES
     const cleanTextForTTS = (text) => {
-      return text.trim().replace(/\s+/g, ' ');
+      if (!text) return '';
+      let t = text.trim();
+
+      // 1. Collapse duplicate chars
+      t = t.replace(/(.)\1{2,}/gi, '$1$1');
+
+      // 2. Handle Independent Dashes (Space - Space) -> Period
+      // Force full stop pause for dramatic dashes
+      // Note: Hyphenated words (e.g. "semi-circle") are ignored because they lack spaces
+      t = t.replace(/ - /g, '. ');
+      t = t.replace(/—/g, '. ');
+      t = t.replace(/–/g, '. ');
+      t = t.replace(/--+/g, '. ');
+
+      // 3. Handle Commas -> Period
+      // Force full stop pause for commas (Prevents rushing)
+      t = t.replace(/,/g, '. ');
+
+      // 4. Handle Semi-colons -> Period
+      t = t.replace(/;/g, '. ');
+
+      // 5. Handle Ellipses -> Period
+      // Convert "..." to "." to avoid stuttering/glitching
+      t = t.replace(/\.\.\./g, '. ');
+
+      // 6. Enhance Sentence Breaks
+      // Ensure punctuation has space after it
+      t = t.replace(/([.?!])(?=\S)/g, '$1 ');
+
+      // 7. Text Cleanup
+      t = t.replace(/[""“]([^""”]+)[""”]/g, '$1'); // Strip quotes
+      t = t.replace(/[""'''"']/g, '');             // Strip remaining quotes
+      t = t.replace(/\.\.+/g, '.');                // Fix ".." -> "."
+      t = t.replace(/\. \./g, '.');                // Fix ". ." -> "."
+      t = t.replace(/\s+/g, ' ');                  // Normalize spaces
+
+      return t;
+    };
+
+    // Split story text into PAGES (by line) rather than sentences
+    // This restores the "intuitive" control where hitting Enter = New Page
+    const splitIntoSentences = (text) => {
+      if (!text) return [];
+      return text.split('\n')
+        .map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()) // Remove "1. ", "2. " etc.
+        .filter(l => l.length > 0);                      // Remove empty lines
     };
 
     // =============================================
@@ -604,6 +785,16 @@
       const [speed, setSpeed] = useState(prefs.speed || 0.85);
       const [isTransitioning, setIsTransitioning] = useState(false);
 
+      // New Accessibility & Option States
+      const [showBoundary, setShowBoundary] = useState(prefs.showBoundary || false);
+      const [boundaryColor, setBoundaryColor] = useState(prefs.boundaryColor || 'yellow');
+      const [showTitlePage, setShowTitlePage] = useState(prefs.showTitlePage !== false); // Default true
+      const [loopStory, setLoopStory] = useState(prefs.loopStory || false);
+
+      // Lock Button Timer State
+      const [isHoldingLock, setIsHoldingLock] = useState(false);
+      const [lockHoldProgress, setLockHoldProgress] = useState(0);
+
       // Engine state
       const [engineMode, setEngineMode] = useState('kokoro'); // 'kokoro' | 'fallback'
       const [modelReady, setModelReady] = useState(false);
@@ -613,9 +804,9 @@
       const [isGenerating, setIsGenerating] = useState(false);
       const [isPlaying, setIsPlaying] = useState(false);
 
-      // Accessibility Settings
       const [storyToPlay, setStoryToPlay] = useState(null);
       const [editingId, setEditingId] = useState(null);
+      const [viewFolder, setViewFolder] = useState(null); // 'Simple Stories' or null
       const [showSettings, setShowSettings] = useState(false);
       // Library & Processing Queue
       const [library, setLibrary] = useState(() => {
@@ -633,18 +824,72 @@
       });
       useEffect(() => localStorage.setItem('storytap_library_v1', JSON.stringify(library)), [library]);
 
+      // LOAD SIMPLE STORIES (JS Variable)
+      // This is robust for local file:// usage where fetch() is blocked by CORS
+      useEffect(() => {
+        const loadStories = () => {
+          const data = window.QUICK_STORIES;
+          if (data && Array.isArray(data)) {
+            setLibrary(prev => {
+              const newLib = [...prev];
+              let changed = false;
+              data.forEach(s => {
+                const id = 'simple_' + s.title.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const existingIdx = newLib.findIndex(existing => existing.id === id);
+
+                if (existingIdx === -1) {
+                  // Add new
+                  newLib.push({
+                    id,
+                    title: s.title,
+                    text: s.text,
+                    voice: 'af_heart',
+                    speed: 0.75,
+                    status: 'ready',
+                    progress: 100,
+                    folder: 'Simple Stories'
+                  });
+                  changed = true;
+                } else {
+                  // Update existing if changed (reflects file edits)
+                  const ex = newLib[existingIdx];
+                  if (ex.text !== s.text || ex.title !== s.title) {
+                    newLib[existingIdx] = { ...ex, title: s.title, text: s.text };
+                    changed = true;
+                  }
+                }
+              });
+              return changed ? newLib : prev;
+            });
+          }
+        };
+
+        // Try immediately
+        loadStories();
+
+        // And retry briefly in case of race condition
+        setTimeout(loadStories, 100);
+        setTimeout(loadStories, 500);
+      }, []);
+
       // Processing Queue
       const processingRef = useRef(null);
+      const lockHoldTimerRef = useRef(null);
+
+      // Save Preferences
+      useEffect(() => {
+        const settings = {
+          voice, speed, textSize, theme,
+          soundCuesEnabled, vibrationEnabled, allowSkip,
+          showBoundary, boundaryColor, showTitlePage, loopStory
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+      }, [voice, speed, textSize, theme, soundCuesEnabled, vibrationEnabled, allowSkip, showBoundary, boundaryColor, showTitlePage, loopStory]);
 
       const processStory = async (story) => {
         processingRef.current = story.id;
 
-        const sentences = [];
-        story.text.split('\n').forEach(line => {
-          (line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).forEach(s => {
-            if (s.trim()) sentences.push(s.trim());
-          });
-        });
+        const sentences = splitIntoSentences(story.text);
 
         const total = sentences.length;
         if (total === 0) {
@@ -665,7 +910,10 @@
             progress: Math.round((completed / total) * 100)
           } : s));
 
-          await yieldIdle(20);
+          // Yield generously between sentences so the UI stays fully responsive
+          // (parents can open settings, browse, etc. while caching runs)
+          await yieldToBrowser();
+          await new Promise(r => setTimeout(r, 100));
         }
 
         if (processingRef.current === story.id) {
@@ -743,8 +991,9 @@
       const [soundCuesEnabled, setSoundCuesEnabled] = useState(prefs.soundCuesEnabled ?? true);
       const [vibrationEnabled, setVibrationEnabled] = useState(prefs.vibrationEnabled ?? true);
       const [theme, setTheme] = useState(prefs.theme || 'default');
-      const [textSize, setTextSize] = useState(prefs.textSize || 'normal');
+      const [textSize, setTextSize] = useState(prefs.textSize || 'huge');
       const [allowSkip, setAllowSkip] = useState(prefs.allowSkip ?? false);
+      const [showEditControls, setShowEditControls] = useState(false);
 
       // Save preferences on change
       useEffect(() => {
@@ -761,6 +1010,12 @@
       const holdTimerRef = useRef(null);
       const holdStartRef = useRef(null);
       const lastInteractionRef = useRef(0);
+
+      // Settings hold state (child-safe — requires 2s hold to open on library page)
+      const [isHoldingSettings, setIsHoldingSettings] = useState(false);
+      const [settingsHoldProgress, setSettingsHoldProgress] = useState(0);
+      const settingsHoldTimerRef = useRef(null);
+      const settingsHoldStartRef = useRef(null);
 
       // Refs
       const ttsRef = useRef(null);
@@ -879,19 +1134,20 @@
         const useVoice = voiceOpt || voice;
         const useSpeed = speedOpt || speed;
 
-        // Check persistent cache first
-        const cacheKey = getCacheKey(text, useVoice, useSpeed);
+        // Clean text FIRST — normalize elongated letters, whitespace, etc.
+        // This must happen before cache key so "Allllll" and "All" share the same cache entry
+        const cleanText = cleanTextForTTS(text);
+
+        // Check persistent cache first (keyed on cleaned text)
+        const cacheKey = getCacheKey(cleanText, useVoice, useSpeed);
         try {
           const cachedBlob = await getCachedAudio(cacheKey);
           if (cachedBlob) {
-            console.log('Using cached audio for:', text.substring(0, 30) + '...');
             return URL.createObjectURL(cachedBlob);
           }
         } catch (e) { /* Cache miss, generate fresh */ }
 
         try {
-          // Clean the text and generate audio for the full sentence
-          const cleanText = cleanTextForTTS(text);
           await yieldIdle(10);
 
           const audio = await ttsRef.current.generate(cleanText, { voice: useVoice, speed: useSpeed });
@@ -984,7 +1240,7 @@
       }, [engineMode, generateKokoroAudio]);
 
       const playSentence = useCallback(async (idx, list) => {
-        if (idx < 0 || idx >= list.length) return;
+        if (idx < -1 || idx >= list.length) return; // Allow -1 for Title
 
         // Stop current audio
         setIsPlaying(false);
@@ -993,7 +1249,7 @@
         }
         window.speechSynthesis?.cancel();
 
-        const text = list[idx];
+        const text = idx === -1 ? `Title: ${storyTitle}` : list[idx];
 
         // Try Kokoro first
         if (engineMode === 'kokoro' && ttsRef.current) {
@@ -1036,7 +1292,7 @@
 
         setIsPlaying(false);
         playCue('ready');
-      }, [engineMode, generateKokoroAudio, speakWithFallback, prefetch, playCue]);
+      }, [engineMode, generateKokoroAudio, speakWithFallback, prefetch, playCue, storyTitle]);
 
       // Audio ended handler - also continue prefetching
       const handleAudioEnded = useCallback(() => {
@@ -1092,6 +1348,64 @@
         }
       };
 
+      // Settings hold-to-open (child-safe on library page)
+      const startHoldSettings = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsHoldingSettings(true);
+        settingsHoldStartRef.current = Date.now();
+        const updateProgress = () => {
+          const elapsed = Date.now() - settingsHoldStartRef.current;
+          const progress = Math.min((elapsed / 2000) * 100, 100);
+          setSettingsHoldProgress(progress);
+          if (progress >= 100) {
+            setShowSettings(true);
+            endHoldSettings();
+          } else {
+            settingsHoldTimerRef.current = requestAnimationFrame(updateProgress);
+          }
+        };
+        settingsHoldTimerRef.current = requestAnimationFrame(updateProgress);
+      };
+
+      const endHoldSettings = () => {
+        setIsHoldingSettings(false);
+        setSettingsHoldProgress(0);
+        if (settingsHoldTimerRef.current) {
+          cancelAnimationFrame(settingsHoldTimerRef.current);
+          settingsHoldTimerRef.current = null;
+        }
+      };
+
+      // Lock button hold timer
+      const startHoldLock = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsHoldingLock(true);
+        const start = Date.now();
+        const updateProgress = () => {
+          const elapsed = Date.now() - start;
+          const progress = Math.min((elapsed / 2000) * 100, 100);
+          setLockHoldProgress(progress);
+          if (progress >= 100) {
+            setShowEditControls(prev => !prev);
+            endHoldLock();
+          } else {
+            lockHoldTimerRef.current = requestAnimationFrame(updateProgress);
+          }
+        };
+        lockHoldTimerRef.current = requestAnimationFrame(updateProgress);
+      };
+
+      const endHoldLock = () => {
+        setIsHoldingLock(false);
+        setLockHoldProgress(0);
+        if (lockHoldTimerRef.current) {
+          cancelAnimationFrame(lockHoldTimerRef.current);
+          lockHoldTimerRef.current = null;
+        }
+      };
+
       // Main tap handler
       const handleTap = useCallback(() => {
         if (isGenerating || isTransitioning) { playCue('busy'); return; }
@@ -1136,11 +1450,22 @@
         }
 
         if (nextIndex >= sentences.length) {
+          if (loopStory) {
+            const loopStart = showTitlePage ? -1 : 0;
+            playCue('story_start');
+            setTimeout(() => {
+              setCurrentIndex(loopStart);
+              playSentence(loopStart, sentences);
+              setIsTransitioning(false);
+            }, 300);
+            return;
+          }
+
           playCue('story_end');
           setTimeout(() => {
             setCurrentIndex(sentences.length);
             setIsTransitioning(false);
-          }, 80); // Reduced from 100ms
+          }, 80);
           return;
         }
 
@@ -1150,7 +1475,7 @@
           playSentence(nextIndex, sentences);
           setIsTransitioning(false);
         }, 80); // Reduced from 150ms — much snappier page turns
-      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence]);
+      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence, loopStory, showTitlePage]);
 
       // Ultra-responsive touch handler for accessibility
       // Fires on the SLIGHTEST contact — any finger count, any pressure
@@ -1182,12 +1507,7 @@
           if (mode === 'create') return; // Don't hog the CPU while user is typing
           if (!rawText.trim() || !modelReady || engineMode !== 'kokoro' || !ttsRef.current) return;
 
-          const sentences = [];
-          rawText.split('\n').forEach(line => {
-            (line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).forEach(s => {
-              if (s.trim()) sentences.push(s.trim());
-            });
-          });
+          const sentences = splitIntoSentences(rawText);
 
           if (!sentences.length) return;
 
@@ -1212,20 +1532,15 @@
 
       // Start story
       const startStory = async () => {
-        const allSentences = [];
-        rawText.split('\n').forEach(line => {
-          (line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).forEach(s => {
-            const c = s.trim();
-            if (c) allSentences.push(c);
-          });
-        });
+        const allSentences = splitIntoSentences(rawText);
         if (!allSentences.length) return;
 
         // Note: We do NOT clear cache here anymore because background generator might have populated it.
         // Cache is cleared by the useEffect above when settings change.
 
         setSentences(allSentences);
-        setCurrentIndex(-1);
+        const startIndex = showTitlePage ? -1 : 0;
+        setCurrentIndex(startIndex);
         setMode('loading');
 
         // Ensure model is loaded (should be already due to auto-init)
@@ -1261,6 +1576,9 @@
 
         setMode('reading');
 
+        // Auto-read on entry (Title or First Sentence)
+        setTimeout(() => playSentence(startIndex, allSentences), 600);
+
         // Trigger background prefetch for the rest immediately
         if (ttsRef.current && engineMode === 'kokoro') {
           // Start prefetcing from index 1 (since 0 is done)
@@ -1287,20 +1605,44 @@
         setIsGenerating(false);
       };
 
+      // Clear all cached audio from all storage
+      const handleClearCache = async () => {
+        const stats = await getCacheStats();
+        const sizeMB = (stats.totalSize / (1024 * 1024)).toFixed(1);
+
+        if (stats.count === 0) {
+          alert('No cached audio data found.');
+          return;
+        }
+
+        if (!confirm(`This will delete ${stats.count} cached audio files (${sizeMB} MB).\n\nAll stories will need to re-download their audio.\n\nContinue?`)) return;
+
+        await clearAllCachedAudio();
+
+        // Reset all library items to 'ready'
+        setLibrary(prev => prev.map(s => ({ ...s, status: 'ready', progress: 100 })));
+
+        // Clear in-memory cache
+        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+        cacheRef.current = {};
+        prefetchRef.current.clear();
+        processingRef.current = null;
+      };
+
       // =============================================
       // SETTINGS MODAL
       // =============================================
       const SettingsModal = () => (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
-          <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto ${currentTheme.border} border`} onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
+          <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col ${currentTheme.border} border ${theme.includes('high-contrast') ? 'high-contrast' : ''}`} onClick={e => e.stopPropagation()}>
             <div className={`p-6 border-b ${currentTheme.border} flex items-center justify-between`}>
               <h2 className={`text-xl font-bold ${currentTheme.textMain}`}>Accessibility Settings</h2>
-              <button onClick={() => setShowSettings(false)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `hover:bg-white/10 ${currentTheme.textMain}` : 'hover:bg-slate-100 text-slate-500'}`}>
+              <button onClick={() => setShowSettings(false)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `hover:bg-white/10 ${currentTheme.textMain}` : `hover:bg-slate-100 ${currentTheme.textSub}`}`}>
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 overflow-y-auto settings-scroll">
               {/* Sound Cues */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1312,7 +1654,7 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Audio feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !soundCuesEnabled ? 'bg-zinc-700' : ''}`}>
+                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? `bg-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !soundCuesEnabled ? 'bg-zinc-700' : ''}`}>
                   <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
@@ -1328,7 +1670,7 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Haptic feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !vibrationEnabled ? 'bg-zinc-700' : ''}`}>
+                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? `bg-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !vibrationEnabled ? 'bg-zinc-700' : ''}`}>
                   <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
@@ -1344,8 +1686,8 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Tap to skip during playback</div>
                   </div>
                 </div>
-                <button onClick={() => setAllowSkip(!allowSkip)} className={`w-14 h-8 rounded-full transition-colors relative ${allowSkip ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !allowSkip ? 'bg-zinc-700' : ''}`}>
-                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${allowSkip ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                <button onClick={() => setAllowSkip(!allowSkip)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${allowSkip ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !allowSkip ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                  <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${allowSkip ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
 
@@ -1362,8 +1704,8 @@
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   {THEMES.map(t => (
-                    <button key={t.id} onClick={() => setTheme(t.id)} className={`relative overflow-hidden p-1 rounded-xl border-2 transition-all group ${theme === t.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-100 hover:border-indigo-200'}`}>
-                      <div className={`w-full aspect-[16/10] rounded-lg bg-gradient-to-br ${t.bg} flex flex-col items-center justify-center relative overflow-hidden`}>
+                    <button key={t.id} onClick={() => setTheme(t.id)} className={`relative overflow-hidden p-1 rounded-xl border-2 transition-all group ${theme === t.id ? `${currentTheme.highlightBorder} ring-2 ${currentTheme.highlightRing}` : `${theme.includes('high-contrast') ? 'border-zinc-700 hover:border-zinc-500' : 'border-slate-200 hover:border-indigo-200'}`}`}>
+                      <div className={`w-full aspect-[16/10] rounded-lg ${t.bg} flex flex-col items-center justify-center relative overflow-hidden`}>
                         {/* Mini text preview */}
                         <div className={`text-xs font-serif font-medium ${t.text} opacity-90 mb-1`}>Fairy Tale</div>
                         <div className={`w-12 h-0.5 rounded-full ${t.text} opacity-20`} />
@@ -1374,14 +1716,14 @@
                         </div>
                       </div>
 
-                      <div className="p-2 text-center bg-white">
-                        <div className="font-bold text-xs text-slate-800">{t.label}</div>
+                      <div className={`p-2 text-center ${currentTheme.cardBg}`}>
+                        <div className={`font-bold text-xs ${currentTheme.textMain}`}>{t.label}</div>
                       </div>
 
                       {/* Selection check */}
                       {theme === t.id && (
-                        <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center shadow-sm z-10">
-                          <Check size={12} className="text-white" strokeWidth={3} />
+                        <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center shadow-sm z-10 ${theme.includes('high-contrast') ? `${currentTheme.border} border-2 ${currentTheme.textMain}` : 'bg-indigo-500 text-white'}`}>
+                          <Check size={12} className={theme.includes('high-contrast') ? '' : 'text-white'} strokeWidth={3} />
                         </div>
                       )}
                     </button>
@@ -1402,42 +1744,154 @@
                 </div>
                 <div className="flex gap-2 mt-3">
                   {[{ id: 'normal', label: 'Normal' }, { id: 'large', label: 'Large' }, { id: 'huge', label: 'Huge' }].map(s => (
-                    <button key={s.id} onClick={() => setTextSize(s.id)} className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${textSize === s.id ? `border-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? `bg-${currentTheme.highlight}-900/30` : `bg-${currentTheme.highlight}-50`}` : `${currentTheme.border} ${theme.includes('high-contrast') ? '' : 'hover:bg-slate-50'}`} ${currentTheme.cardBg}`}>
+                    <button key={s.id} onClick={() => setTextSize(s.id)} className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${textSize === s.id ? `${currentTheme.highlightBorder} ${currentTheme.highlightBgLight}` : `${currentTheme.border} ${theme.includes('high-contrast') ? '' : 'hover:bg-slate-50'}`} ${currentTheme.cardBg}`}>
                       <div className={`font-bold mb-1 ${s.id === 'huge' ? 'text-2xl' : s.id === 'large' ? 'text-xl' : 'text-base'} ${currentTheme.textMain}`}>Aa</div>
                       <div className={`text-xs ${currentTheme.textSub}`}>{s.label}</div>
                     </button>
                   ))}
                 </div>
               </div>
+
+
+
+              {/* Screen Boundary */}
+              <div className={`space-y-3 pt-4 border-t ${currentTheme.border}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-orange-100'}`}>
+                      <Layout size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-orange-600'} />
+                    </div>
+                    <div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>Show Screen Boundary</div>
+                      <div className={`text-sm ${currentTheme.textSub}`}>High contrast edge outline</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowBoundary(!showBoundary)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showBoundary ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !showBoundary ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                    <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${showBoundary ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                  </button>
+                </div>
+
+                <div className={`pt-4 border-t ${currentTheme.border} mt-4`}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-slate-100'}`}>
+                      <PenTool size={16} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-slate-600'} />
+                    </div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>Highlight Color (Boundary & Progress)</span>
+                  </div>
+
+                  <div className="grid grid-cols-6 gap-2">
+                    {[{ id: 'yellow', hex: '#facc15', label: 'Yellow' }, { id: 'red', hex: '#ef4444', label: 'Red' }, { id: 'green', hex: '#10b981', label: 'Green' }, { id: 'orange', hex: '#f97316', label: 'Orange' }, { id: 'purple', hex: '#a855f7', label: 'Purple' }, { id: 'blue', hex: '#3b82f6', label: 'Blue' }].map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => setBoundaryColor(c.id)}
+                        className={`w-10 h-10 rounded-full transition-transform shadow-sm ${boundaryColor === c.id ? `ring-4 ring-offset-2 ${currentTheme.highlightRing} scale-110 ${theme.includes('high-contrast') ? 'ring-offset-zinc-900' : ''}` : `hover:scale-105 border-2 opacity-80 hover:opacity-100 ${theme.includes('high-contrast') ? 'border-zinc-600' : 'border-slate-200'}`}`}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.label}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* STORY OPTIONS */}
+              <div className={`space-y-3 pt-4 border-t ${currentTheme.border}`}>
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>Story Options</h3>
+
+                {/* Show Title Page */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-teal-100'}`}>
+                      <Type size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-teal-600'} />
+                    </div>
+                    <div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>Show Title Page</div>
+                      <div className={`text-sm ${currentTheme.textSub}`}>Read title before story</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowTitlePage(!showTitlePage)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showTitlePage ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !showTitlePage ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                    <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${showTitlePage ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                  </button>
+                </div>
+
+                {/* Loop Story */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-blue-100'}`}>
+                      <RefreshCw size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-blue-600'} />
+                    </div>
+                    <div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>Loop Story</div>
+                      <div className={`text-sm ${currentTheme.textSub}`}>Restart automatically</div>
+                    </div>
+                  </div>
+                  <button onClick={() => setLoopStory(!loopStory)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${loopStory ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !loopStory ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                    <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${loopStory ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Clear Audio Cache - At Bottom */}
+              <div className={`flex items-center justify-between pt-4 border-t ${currentTheme.border}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-rose-100'}`}>
+                    <Trash2 size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-rose-600'} />
+                  </div>
+                  <div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Clear Audio Cache</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Free up storage space</div>
+                  </div>
+                </div>
+                <button onClick={handleClearCache} className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${theme.includes('high-contrast') ? 'bg-rose-900/50 text-rose-200 hover:bg-rose-900' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`}>
+                  Clear
+                </button>
+              </div>
+
             </div>
 
             <div className={`p-6 border-t ${currentTheme.border}`}>
-              <button onClick={() => setShowSettings(false)} className={`w-full py-3 font-bold rounded-xl transition-colors ${theme.includes('high-contrast') ? `bg-white text-black hover:bg-slate-200` : `bg-${currentTheme.highlight}-500 text-white hover:bg-${currentTheme.highlight}-600`}`}>Done</button>
+              <button onClick={() => setShowSettings(false)} className={`w-full py-3 font-bold rounded-xl transition-colors ${theme === 'high-contrast-yb' ? 'bg-yellow-400 text-black hover:bg-yellow-300' : theme === 'high-contrast-wb' ? 'bg-white text-black hover:bg-slate-200' : `bg-${currentTheme.highlight}-500 text-white hover:bg-${currentTheme.highlight}-600`}`}>Done</button>
             </div>
           </div>
         </div>
       );
+
+      // BOUNDARY OVERLAY (High Visibility)
+      // BOUNDARY OVERLAY (High Visibility)
+      const renderBoundary = () => {
+        if (!showBoundary) return null;
+        const colors = {
+          yellow: 'border-yellow-400',
+          red: 'border-red-500',
+          green: 'border-emerald-500',
+          orange: 'border-orange-500',
+          purple: 'border-purple-500',
+          blue: 'border-blue-500'
+        };
+        return (
+          <div className={`fixed inset-0 border-[12px] ${colors[boundaryColor] || 'border-yellow-400'} pointer-events-none z-[9999]`} style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)' }} />
+        );
+      };
 
       // =============================================
       // LOADING SCREEN
       // =============================================
       if (mode === 'loading') {
         return (
-          <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col items-center justify-center p-8">
+          <div className={`fixed inset-0 flex flex-col items-center justify-center p-8 ${theme.includes('high-contrast') ? currentTheme.pageBg : 'bg-slate-900'}`}>
             <div className="relative mb-8">
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-                <Wand2 size={40} className="text-white animate-pulse" />
+              <div className={`w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl ${theme.includes('high-contrast') ? `border-2 ${currentTheme.border}` : 'bg-indigo-600 shadow-indigo-500/30'}`}>
+                <Wand2 size={40} className={`animate-pulse ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-white'}`} />
               </div>
             </div>
-            <h2 className="text-2xl font-extrabold text-white mb-2">Preparing Magic Voice</h2>
-            <p className="text-indigo-300 text-sm mb-6">{modelStatus || 'This only happens once...'}</p>
-            <div className="w-64 h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300 rounded-full" style={{ width: `${modelProgress}%` }} />
+            <h2 className={`text-2xl font-extrabold mb-2 ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-white'}`}>Preparing Magic Voice</h2>
+            <p className={`text-sm mb-6 ${theme.includes('high-contrast') ? `${currentTheme.textSub}` : 'text-indigo-300'}`}>{modelStatus || 'This only happens once...'}</p>
+            <div className={`w-64 h-2 rounded-full overflow-hidden ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-slate-800'}`}>
+              <div className={`h-full transition-all duration-300 rounded-full ${theme.includes('high-contrast') ? currentTheme.progress : 'bg-indigo-500'}`} style={{ width: `${modelProgress}%` }} />
             </div>
-            <p className="text-indigo-400 mt-3 font-bold">{modelProgress}%</p>
+            <p className={`mt-3 font-bold ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-indigo-400'}`}>{modelProgress}%</p>
 
             {loadError && (
-              <div className="mt-6 bg-amber-900/50 text-amber-200 p-4 rounded-xl max-w-md text-center">
+              <div className={`mt-6 p-4 rounded-xl max-w-md text-center ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-amber-900/50 text-amber-200'}`}>
                 <AlertTriangle className="mx-auto mb-2" size={24} />
                 <p className="text-sm">{loadError}</p>
                 <p className="text-xs mt-2 opacity-75">Switching to backup voice...</p>
@@ -1451,86 +1905,169 @@
       // LIBRARY SCREEN (Main Landing)
       // =============================================
       if (mode === 'library') {
+        // Helper to render card (extracted to avoid duplication)
+        const renderStoryCard = (story) => (
+          <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group ${currentTheme.cardBg} ${story.status === 'processing' ? 'processing-card' : `border-2 ${currentTheme.border} hover:scale-[1.02]`}`}>
+            <div className={`h-2 w-full ${VOICES.find(v => v.name === story.voice)?.color || 'bg-indigo-400'}`} />
+            <div className="px-6 pt-5 pb-6 flex flex-col justify-between" style={{height: 'calc(100% - 8px)'}}>
+              <div>
+                {story.status === 'processing' && (
+                  <div className="flex justify-end mb-2">
+                    <Loader2 className={`${currentTheme.textSub} animate-spin`} size={20} />
+                  </div>
+                )}
+                <div className={`font-bold text-2xl leading-tight mb-3 line-clamp-3 ${currentTheme.textMain}`}>{story.title}</div>
+                <div className={`text-sm leading-relaxed ${currentTheme.textSub} line-clamp-4`}>{story.text}</div>
+              </div>
+
+              <div className="flex items-center justify-between mt-4">
+                {story.status === 'processing' ? (
+                  <div className="flex-1 mr-4">
+                    <div className={`text-xs font-bold mb-1 ${currentTheme.highlightText}`}>Downloading... {story.progress}%</div>
+                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-100'}`}>
+                      <div className={`h-full ${currentTheme.progress} transition-all duration-300`} style={{ width: `${story.progress}%` }} />
+                    </div>
+                  </div>
+                ) : story.status === 'cached' ? (
+                  <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-500">
+                    <Check size={12} strokeWidth={3} /> Cached & Ready
+                  </div>
+                ) : (
+                  <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>
+                    <Play size={12} fill="currentColor" /> Tap to Read
+                  </div>
+                )}
+
+                {showEditControls && (
+                  <div className="flex items-center -mr-2">
+                    {story.status !== 'processing' && story.status !== 'cached' && (
+                      <button onClick={(e) => preloadBook(story, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `${currentTheme.textSub} hover:bg-white/10` : 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'}`} title="Download audio for faster playback">
+                        <Download size={18} />
+                      </button>
+                    )}
+                    {story.status === 'cached' && (
+                      <div className={`p-2 ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-emerald-400'}`} title="Audio cached">
+                        <Download size={18} />
+                      </div>
+                    )}
+                    <button onClick={(e) => editBook(story, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `${currentTheme.textSub} hover:bg-white/10` : 'text-amber-400 hover:text-amber-600 hover:bg-amber-50'}`} title="Edit Story">
+                      <Pencil size={18} />
+                    </button>
+                    <button onClick={(e) => deleteBook(story.id, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? 'text-rose-400 hover:bg-white/10' : 'text-rose-300 hover:text-rose-500 hover:bg-rose-50'}`}>
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+
+        const simpleStories = library.filter(s => s.folder === 'Simple Stories');
+        const userStories = library.filter(s => !s.folder); // User stories have no folder property or null
+
         return (
-          <div className={`min-h-screen ${currentTheme.pageBg} p-4 md:p-8 transition-colors duration-300`}>
-            {showSettings && <SettingsModal />}
+          <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
+            {renderBoundary()}
+            {showSettings && SettingsModal()}
 
             <header className="max-w-4xl mx-auto flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg text-white`}>
-                  <BookOpen size={24} />
-                </div>
-                <h1 className={`text-3xl font-bold font-serif ${currentTheme.textMain} tracking-tight`}>StoryTap</h1>
+                {viewFolder ? (
+                  <button onClick={() => setViewFolder(null)} className={`flex items-center gap-2 font-bold ${currentTheme.textMain} hover:opacity-80 transition-colors`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 ${theme.includes('high-contrast') ? `${currentTheme.cardBg} ${currentTheme.border}` : `${currentTheme.inputBg} ${currentTheme.border}`}`}>
+                      <ArrowLeft size={20} className={currentTheme.textMain} />
+                    </div>
+                    <span className="text-xl">Back to Library</span>
+                  </button>
+                ) : (
+                  <>
+                    <div className={`w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg text-white`}>
+                      <BookOpen size={24} />
+                    </div>
+                    <h1 className={`text-3xl font-bold font-serif ${currentTheme.textMain} tracking-tight`}>StoryTap</h1>
+                  </>
+                )}
               </div>
-              <button onClick={() => setShowSettings(true)} className={`p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
-                <Settings size={22} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onMouseDown={startHoldLock} onMouseUp={endHoldLock} onMouseLeave={endHoldLock} onTouchStart={startHoldLock} onTouchEnd={endHoldLock} onTouchCancel={endHoldLock} className={`relative p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${showEditControls ? 'text-amber-500' : currentTheme.textSub}`} title="Hold to toggle lock">
+                  {isHoldingLock && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (lockHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
+                    </svg>
+                  )}
+                  {showEditControls ? <Unlock size={22} /> : <Lock size={22} />}
+                </button>
+                <button onMouseDown={startHoldSettings} onMouseUp={endHoldSettings} onMouseLeave={endHoldSettings} onTouchStart={startHoldSettings} onTouchEnd={endHoldSettings} onTouchCancel={endHoldSettings} className={`relative p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`} title="Hold for settings">
+                  {isHoldingSettings && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (settingsHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
+                    </svg>
+                  )}
+                  <Settings size={22} />
+                </button>
+              </div>
             </header>
+            {(isHoldingSettings || isHoldingLock) && (
+              <div className={`max-w-4xl mx-auto -mt-6 mb-4 text-center text-sm font-bold ${currentTheme.textSub}`}>
+                {isHoldingLock ? 'Hold to toggle lock...' : 'Hold for settings...'}
+              </div>
+            )}
 
-            <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              <button onClick={createNewBook} className={`aspect-[3/4] rounded-3xl border-4 border-dashed flex flex-col items-center justify-center gap-4 transition-all group ${currentTheme.border} hover:border-${currentTheme.highlight}-400 hover:bg-${currentTheme.highlight}-50/30`}>
-                <div className={`w-20 h-20 rounded-full bg-${currentTheme.highlight}-100 flex items-center justify-center text-${currentTheme.highlight}-600 group-hover:scale-110 transition-transform`}>
-                  <Plus size={40} />
-                </div>
-                <span className={`font-bold text-lg ${currentTheme.textSub}`}>Create New Book</span>
-              </button>
+            <div className="max-w-4xl mx-auto pb-12">
 
-              {library.map(story => (
-                <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group ${currentTheme.cardBg} ${story.status === 'processing' ? 'processing-card' : `border ${currentTheme.border} hover:scale-[1.02]`}`}>
-                  <div className={`h-1/2 bg-gradient-to-br ${VOICES.find(v => v.name === story.voice)?.color || 'from-indigo-400 to-purple-500'} p-6 flex flex-col justify-between`}>
-                    <div className="flex justify-between items-start w-full">
-                      <span className="text-4xl shadow-sm filter drop-shadow-md">{VOICES.find(v => v.name === story.voice)?.emoji || '📖'}</span>
-                      {story.status === 'processing' && (
-                        <Loader2 className="text-white animate-spin" size={24} />
-                      )}
+              {/* FOLDER VIEW: Simple Stories */}
+              {viewFolder === 'Simple Stories' && (
+                <div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-amber-100 text-amber-500'}`}>
+                      <Star size={24} fill="currentColor" />
                     </div>
+                    <h2 className={`text-2xl font-bold ${currentTheme.textMain}`}>Simple Stories</h2>
                   </div>
-                  <div className="p-6 flex flex-col h-1/2 justify-between">
-                    <div>
-                      <div className={`font-bold text-xl leading-tight mb-2 line-clamp-2 ${currentTheme.textMain}`}>{story.title}</div>
-                      <div className={`text-sm ${currentTheme.textSub} line-clamp-2`}>{story.text}</div>
-                    </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                    {simpleStories.map(renderStoryCard)}
+                  </div>
+                </div>
+              )}
 
-                    <div className="flex items-center justify-between mt-4">
-                      {story.status === 'processing' ? (
-                        <div className="flex-1 mr-4">
-                          <div className={`text-xs font-bold mb-1 text-${currentTheme.highlight}-600`}>Downloading... {story.progress}%</div>
-                          <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                            <div className={`h-full bg-${currentTheme.highlight}-500 transition-all duration-300`} style={{ width: `${story.progress}%` }} />
-                          </div>
-                        </div>
-                      ) : story.status === 'cached' ? (
-                        <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-500">
-                          <Check size={12} strokeWidth={3} /> Cached &amp; Ready
-                        </div>
-                      ) : (
-                        <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>
-                          <Play size={12} fill="currentColor" /> Tap to Read
-                        </div>
-                      )}
+              {/* ROOT VIEW: Folders + User Stories */}
+              {viewFolder === null && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
 
-                      <div className="flex items-center -mr-2">
-                        {story.status !== 'processing' && story.status !== 'cached' && (
-                          <button onClick={(e) => preloadBook(story, e)} className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors" title="Download audio for faster playback">
-                            <Download size={18} />
-                          </button>
-                        )}
-                        {story.status === 'cached' && (
-                          <div className="p-2 text-emerald-400" title="Audio cached">
-                            <Download size={18} />
-                          </div>
-                        )}
-                        <button onClick={(e) => editBook(story, e)} className="p-2 text-amber-400 hover:text-amber-600 hover:bg-amber-50 rounded-full transition-colors" title="Edit Story">
-                          <Pencil size={18} />
-                        </button>
-                        <button onClick={(e) => deleteBook(story.id, e)} className="p-2 text-rose-300 hover:text-rose-500 hover:bg-rose-50 rounded-full transition-colors">
-                          <Trash2 size={18} />
-                        </button>
+                  {/* Create New (Edit Mode Only, Root Only) */}
+                  {showEditControls && (
+                    <button onClick={createNewBook} className={`aspect-[3/4] rounded-3xl border-4 border-dashed flex flex-col items-center justify-center gap-4 transition-all group ${currentTheme.border} ${theme.includes('high-contrast') ? `hover:border-current hover:bg-white/5 ${currentTheme.textMain}` : `hover:border-${currentTheme.highlight}-400 hover:bg-${currentTheme.highlight}-50/30`}`}>
+                      <div className={`w-20 h-20 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${theme.includes('high-contrast') ? `border-2 ${currentTheme.border} ${currentTheme.textMain}` : `bg-${currentTheme.highlight}-100 text-${currentTheme.highlight}-600`}`}>
+                        <Plus size={40} />
                       </div>
-                    </div>
-                  </div>
+                      <span className={`font-bold text-lg ${currentTheme.textSub}`}>Create New Book</span>
+                    </button>
+                  )}
+
+                  {/* FOLDER: Simple Stories */}
+                  {simpleStories.length > 0 && (
+                    <button onClick={() => setViewFolder('Simple Stories')} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group hover:scale-[1.02] ${theme.includes('high-contrast') ? `${currentTheme.cardBg} border-2 ${currentTheme.border}` : 'bg-amber-50 border-2 border-amber-100 hover:border-amber-300'}`}>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
+                        <div className="relative mb-6 group-hover:scale-110 transition-transform duration-300">
+                          {!theme.includes('high-contrast') && <div className="absolute inset-0 bg-amber-200 blur-xl opacity-50 rounded-full"></div>}
+                          <Star size={64} className={`relative drop-shadow-sm ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-amber-400'}`} fill="currentColor" />
+                        </div>
+                        <h3 className={`text-2xl font-bold mb-2 ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-amber-900'}`}>Simple Stories</h3>
+                        <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-white/60 text-amber-700'}`}>
+                          <BookOpen size={14} />
+                          {simpleStories.length} Books
+                        </div>
+                      </div>
+                    </button>
+                  )}
+
+                  {/* User Stories */}
+                  {userStories.map(renderStoryCard)}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         );
@@ -1543,18 +2080,22 @@
         const isHighContrast = theme.includes('high-contrast');
 
         return (
-          <div className={`min-h-screen ${currentTheme.pageBg} p-4 md:p-8 transition-colors duration-300`}>
+          <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
+            {renderBoundary()}
             {showSettings && <SettingsModal />}
 
             <div className="max-w-2xl mx-auto space-y-6">
               <header className="flex items-center justify-between mb-8">
-                <button onClick={() => setMode('library')} className={`flex items-center gap-2 font-bold ${currentTheme.textSub} hover:${currentTheme.textMain} transition-colors`}>
-                  <ArrowLeft size={20} /> Back to Library
+                <button onClick={() => setMode('library')} className={`flex items-center gap-2 font-bold ${currentTheme.textMain} hover:opacity-80 transition-colors`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 ${theme.includes('high-contrast') ? `${currentTheme.cardBg} ${currentTheme.border}` : `${currentTheme.inputBg} ${currentTheme.border}`}`}>
+                    <ArrowLeft size={20} className={currentTheme.textMain} />
+                  </div>
+                  <span className="text-lg">Back</span>
                 </button>
                 <h1 className={`text-2xl font-bold font-serif ${currentTheme.textMain}`}>{editingId ? 'Edit Story' : 'Create Story'}</h1>
               </header>
 
-              <div className={`rounded-2xl p-4 shadow-lg ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-indigo-200'}`}>
+              <div className={`rounded-2xl p-4 shadow-lg ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-indigo-500 text-white shadow-indigo-200'}`}>
                 <div className="flex items-start gap-3">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? `border ${currentTheme.border}` : 'bg-white/20'}`}>
                     <Volume2 size={20} className={isHighContrast ? currentTheme.textMain : 'text-white'} />
@@ -1576,20 +2117,20 @@
               <div className={`${currentTheme.cardBg} rounded-3xl shadow-xl p-6 md:p-8 space-y-8 border ${currentTheme.border} transition-colors`}>
                 <div className="space-y-2">
                   <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Title</label>
-                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-2xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Once Upon a Time..." />
+                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-2xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} ${currentTheme.highlightFocus}`} placeholder="Once Upon a Time..." />
                 </div>
 
                 <div className="space-y-2">
                   <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
-                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-2xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Paste or type your story here..." />
+                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-2xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} ${currentTheme.highlightFocus}`} placeholder="Paste or type your story here..." />
                 </div>
 
                 <div className="space-y-3">
                   <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Narrator Voice</label>
                   <div className="grid grid-cols-2 gap-3">
                     {VOICES.map(v => (
-                      <button key={v.name} onClick={() => setVoice(v.name)} className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? `border-${currentTheme.highlight}-500 shadow-lg` : `${currentTheme.border} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg} ${currentTheme.textMain}`}>
-                        {!isHighContrast && <div className={`absolute inset-0 bg-gradient-to-br ${v.color} opacity-0 group-hover:opacity-5 transition-opacity ${voice === v.name ? 'opacity-10' : ''}`} />}
+                      <button key={v.name} onClick={() => setVoice(v.name)} className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? `${currentTheme.highlightBorder} shadow-lg` : `${currentTheme.border} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg} ${currentTheme.textMain}`}>
+                        {!isHighContrast && <div className={`absolute inset-0 ${v.color} opacity-0 group-hover:opacity-10 transition-opacity ${voice === v.name ? 'opacity-20' : ''}`} />}
                         <div className="relative flex items-center gap-3">
                           <span className="text-2xl">{v.emoji}</span>
                           <div>
@@ -1597,7 +2138,7 @@
                             <div className={`text-xs ${currentTheme.textSub}`}>{v.desc}</div>
                           </div>
                         </div>
-                        {voice === v.name && <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${isHighContrast ? 'bg-white text-black' : 'bg-indigo-500 text-white'}`}><Check size={12} /></div>}
+                        {voice === v.name && <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${isHighContrast ? (theme === 'high-contrast-yb' ? 'bg-yellow-400 text-black' : 'bg-white text-black') : 'bg-indigo-500 text-white'}`}><Check size={12} /></div>}
                       </button>
                     ))}
                   </div>
@@ -1609,7 +2150,7 @@
                     {SPEEDS.map(s => {
                       const Icon = s.icon;
                       return (
-                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-2xl border-2 text-center transition-all ${speed === s.value ? `border-${currentTheme.highlight}-500 ${isHighContrast ? currentTheme.textMain : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
+                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-2xl border-2 text-center transition-all ${speed === s.value ? `${currentTheme.highlightBorder} ${isHighContrast ? `${currentTheme.textMain} ${currentTheme.highlightBgLight}` : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
                           <Icon size={20} className="mx-auto mb-1" />
                           <div className="font-bold text-sm">{s.label}</div>
                         </button>
@@ -1618,7 +2159,7 @@
                   </div>
                 </div>
 
-                <button onClick={saveCreatedBook} disabled={!rawText.trim() || !storyTitle.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white shadow-indigo-200'}`}>
+                <button onClick={saveCreatedBook} disabled={!rawText.trim() || !storyTitle.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-200'}`}>
                   <Sparkles fill={isHighContrast ? "currentColor" : "white"} size={24} />
                   {editingId ? 'Save Changes' : 'Save Book'}
                 </button>
@@ -1642,99 +2183,109 @@
           onTouchMove={(e) => e.preventDefault()}
           onMouseDown={handleInteraction}
           onContextMenu={(e) => e.preventDefault()}
-          onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleInteraction(e); }}}
+          onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleInteraction(e); } }}
           className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden"
           role="button"
           tabIndex={0}
           aria-label={isCover ? 'Tap anywhere to begin the story' : isEnd ? 'Tap to start over' : `Sentence ${currentIndex + 1} of ${sentences.length}. Tap for next.`}
           aria-live="polite"
         >
+          {renderBoundary()}
           <audio ref={audioRef} onEnded={handleAudioEnded} preload="auto" hidden />
 
-          <div className="absolute top-4 left-4 z-50">
-            <button onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit} onTouchStart={startHoldExit} onTouchEnd={endHoldExit} onTouchCancel={endHoldExit} className="relative p-3 bg-white/10 hover:bg-white/20 rounded-full text-white/40 hover:text-white/70 transition-all">
+          <div className="absolute top-6 left-6 z-50">
+            <button onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit} onTouchStart={startHoldExit} onTouchEnd={endHoldExit} onTouchCancel={endHoldExit} className={`relative p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/40 hover:text-white/70' : 'bg-black/10 hover:bg-black/20 text-black/40 hover:text-black/70'}`}>
               {isHoldingExit && (
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="white" strokeWidth="2" strokeDasharray="100" strokeDashoffset={100 - holdProgress} strokeLinecap="round" />
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="2" strokeOpacity="0.2" />
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="100" strokeDashoffset={100 - holdProgress} strokeLinecap="round" />
                 </svg>
               )}
               <ArrowLeft size={18} />
             </button>
-            {isHoldingExit && <div className="absolute left-12 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap">Hold to exit...</div>}
+            {isHoldingExit && <div className={`absolute left-12 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap ${currentTheme.readingDark ? 'bg-black/80 text-white' : 'bg-white/90 text-black shadow-lg'}`}>Hold to exit...</div>}
           </div>
 
           {isCover && (
-            <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.coverBg} flex flex-col items-center justify-center p-8`}>
+            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-8`}>
               {!theme.includes('high-contrast') && (
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl ambient-orb" />
-                  <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl ambient-orb-2" />
+                  {/* Flat ambient background removed for accessibility */}
                 </div>
               )}
-              <div className="relative mb-10 fade-in-up">
-                <div className={`w-32 h-40 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center border glow backdrop-blur-sm ${currentTheme.coverBorder}`}>
-                  <BookOpen size={56} className={currentTheme.coverText} />
-                </div>
-              </div>
-              <h1 className={`text-4xl md:text-6xl font-black text-center mb-4 leading-tight fade-in-up ${currentTheme.coverText}`}>{storyTitle}</h1>
-              <p className={`text-lg mb-16 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
-              <div className="flex flex-col items-center fade-in-up">
-                <div className="relative">
-                  <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${currentTheme.pulse}`} />
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                    <Volume2 size={36} className={currentTheme.coverText} />
+              <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                <div className="flex-1 flex flex-col items-center justify-center w-full">
+                  <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black/5'}`}>
+                    <BookOpen size={40} className={currentTheme.coverText} />
+                  </div>
+                  <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl`}>{storyTitle}</h1>
+                  <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
+
+                  <div className="relative mb-8">
+                    <div className={`absolute inset-0 w-20 h-20 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                      <Volume2 size={32} className={currentTheme.coverText} />
+                    </div>
                   </div>
                 </div>
-                <span className={`font-bold text-lg mt-6 uppercase tracking-widest ${currentTheme.coverSub}`}>Tap Anywhere</span>
+
+                <div className="flex flex-col items-center pb-8">
+                  <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>Tap Anywhere</span>
+                  <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-1`}>Title Page</span>
+                </div>
               </div>
             </div>
-          )}
+          )
+          }
 
-          {isReading && (
-            <div className={`absolute inset-0 bg-gradient-to-b ${currentTheme.bg} flex flex-col items-center justify-center p-6 md:p-16`}>
-              {isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm">
-                  <Loader2 className={`w-12 h-12 animate-spin ${currentTheme.text}`} />
-                </div>
-              )}
-              <div className={`relative max-w-4xl mx-auto ${isTransitioning ? 'page-turn' : ''}`}>
-                <p className={`${getTextSizeClass()} font-serif font-medium text-center leading-relaxed tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6">
-                {isPlaying ? (
-                  <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
-                    <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
-                    <span className="text-sm font-semibold uppercase tracking-wider">Listening...</span>
-                  </div>
-                ) : !isGenerating && (
-                  <div className={`flex items-center gap-2 opacity-40 animate-pulse ${currentTheme.text}`}>
-                    <span className="text-sm font-semibold uppercase tracking-wider">Tap for next</span>
+          {
+            isReading && (
+              <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center p-6 pb-36 md:p-16 md:pb-44`}>
+                {isGenerating && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm">
+                    <Loader2 className={`w-12 h-12 animate-spin ${currentTheme.text}`} />
                   </div>
                 )}
-                <div className="w-full max-w-xs">
-                  <div className="h-1 rounded-full overflow-hidden bg-white/10">
-                    <div className={`h-full transition-all duration-500 rounded-full ${currentTheme.progress}`} style={{ width: `${progress}%` }} />
+                <div className={`relative max-w-5xl mx-auto px-6 ${isTransitioning ? 'page-turn' : ''}`}>
+                  <p className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6">
+                  {isPlaying ? (
+                    <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
+                      <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
+                      <span className="text-sm font-semibold uppercase tracking-wider">Listening...</span>
+                    </div>
+                  ) : !isGenerating && (
+                    <div className={`flex items-center gap-2 opacity-40 animate-pulse ${currentTheme.text}`}>
+                      <span className="text-sm font-semibold uppercase tracking-wider">Tap for next</span>
+                    </div>
+                  )}
+                  <div className="w-full max-w-md mx-auto">
+                    <div className={`h-8 rounded-full overflow-hidden border-4 border-current ${currentTheme.readingDark ? 'bg-white/20' : 'bg-black/10'} shadow-inner ${currentTheme.text}`}>
+                      <div className={`h-full transition-all duration-500`} style={{ width: `${progress}%`, backgroundColor: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                    </div>
+                    <p className={`text-center text-lg mt-3 font-black uppercase tracking-widest ${currentTheme.text}`}>Page {currentIndex + 1}</p>
                   </div>
-                  <p className={`text-center text-xs mt-2 font-medium ${currentTheme.text} opacity-30`}>{currentIndex + 1} of {sentences.length}</p>
                 </div>
               </div>
-            </div>
-          )}
+            )
+          }
 
-          {isEnd && (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 flex flex-col items-center justify-center p-8">
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">{[...Array(12)].map((_, i) => (<Sparkles key={i} size={16 + i * 2} className="absolute text-white/40 burst" style={{ top: `${20 + Math.random() * 60}%`, left: `${10 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s` }} />))}</div>
-              <Sparkles size={80} className="text-white animate-bounce mb-8" />
-              <h2 className="text-5xl md:text-7xl font-black text-white text-center mb-4">The End!</h2>
-              <p className="text-white/80 text-xl mb-16">What a great story!</p>
-              <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4 pulse-ring"><Heart size={36} className="text-white" fill="white" /></div>
-                <span className="text-white/80 font-bold text-lg uppercase tracking-wider">Tap to Start Over</span>
+          {
+            isEnd && (
+              <div className={`absolute inset-0 flex flex-col items-center justify-center p-8 ${theme.includes('high-contrast') ? currentTheme.bg : 'bg-orange-500'}`}>
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">{[...Array(12)].map((_, i) => (<Sparkles key={i} size={16 + i * 2} className={`absolute burst ${theme.includes('high-contrast') ? `${currentTheme.text} opacity-40` : 'text-white/40'}`} style={{ top: `${20 + Math.random() * 60}%`, left: `${10 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s` }} />))}</div>
+                <Sparkles size={80} className={`animate-bounce mb-8 ${theme.includes('high-contrast') ? currentTheme.text : 'text-white'}`} />
+                <h2 className={`text-5xl md:text-7xl font-black text-center mb-4 ${theme.includes('high-contrast') ? currentTheme.text : 'text-white'}`}>The End!</h2>
+                <p className={`text-xl mb-16 ${theme.includes('high-contrast') ? `${currentTheme.text} opacity-80` : 'text-white/80'}`}>What a great story!</p>
+                <div className="flex flex-col items-center">
+                  <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 pulse-ring ${theme.includes('high-contrast') ? `border-2 ${currentTheme.coverBorder}` : 'bg-white/20'}`}><Heart size={36} className={theme.includes('high-contrast') ? currentTheme.text : 'text-white'} fill="currentColor" /></div>
+                  <span className={`font-bold text-lg uppercase tracking-wider ${theme.includes('high-contrast') ? currentTheme.text : 'text-white/80'}`}>Tap to Start Over</span>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )
+          }
+        </div >
       );
     };
 
