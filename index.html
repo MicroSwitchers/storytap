@@ -1,1055 +1,1286 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>StoryTap — Touch Books for Little Ones</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Crimson+Pro:wght@400;500;600&display=swap"
-    rel="stylesheet">
+  <title>StoryTap — Touch Books</title>
+
   <script src="https://cdn.tailwindcss.com/3.4.16"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Nunito', 'system-ui', 'sans-serif'],
-            serif: ['Crimson Pro', 'Georgia', 'serif'],
+            story: ['"Literata"', '"Georgia"', 'serif'],
+            ui: ['"Inter"', 'system-ui', 'sans-serif'],
           },
         },
       },
     };
   </script>
+
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Literata:ital,opsz,wght@0,7..72,300;0,7..72,400;0,7..72,500;0,7..72,600;0,7..72,700;0,7..72,800;0,7..72,900;1,7..72,400;1,7..72,500&display=swap" rel="stylesheet" />
+
   <style>
-    * {
-      -webkit-tap-highlight-color: transparent;
+    @keyframes fadeIn       { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes zoomIn       { from { transform: scale(0.92); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes slideUp      { from { transform: translateY(2rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    @keyframes gentleBob    { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    @keyframes softPulse    { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @keyframes waveBar      { 0%,100% { height: 20%; } 50% { height: 90%; } }
+    @keyframes shimmer      { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+    @keyframes starsFloat   { 0% { transform: translateY(0) rotate(0deg); opacity:0.7; } 50% { opacity:1; } 100% { transform: translateY(-30px) rotate(20deg); opacity:0; } }
+    @keyframes rippleOut     { 0% { transform: scale(0.5); opacity: 0.5; } 100% { transform: scale(3); opacity: 0; } }
+    @keyframes spinSlow     { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @keyframes pageSlideIn  { from { transform: translateX(60px) scale(0.95); opacity: 0; } to { transform: translateX(0) scale(1); opacity: 1; } }
+    @keyframes pageSlideOut { from { transform: translateX(0) scale(1); opacity: 1; } to { transform: translateX(-60px) scale(0.95); opacity: 0; } }
+
+    .animate-in      { animation-duration: 700ms; animation-fill-mode: both; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+    .fade-in         { animation-name: fadeIn; }
+    .zoom-in         { animation-name: zoomIn; }
+    .slide-up        { animation-name: slideUp; }
+    .bob             { animation: gentleBob 2.5s ease-in-out infinite; }
+    .soft-pulse      { animation: softPulse 2s ease-in-out infinite; }
+    .page-in         { animation: pageSlideIn 500ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .page-out        { animation: pageSlideOut 300ms ease-in both; }
+
+    .animate-in.fade-in.slide-up { animation-name: fadeIn, slideUp; }
+    .animate-in.fade-in.zoom-in  { animation-name: fadeIn, zoomIn; }
+
+    /* Audio bars */
+    .wave-bar { animation: waveBar ease-in-out infinite; }
+    .wave-bar:nth-child(1) { animation-duration: 0.8s; animation-delay: 0s; }
+    .wave-bar:nth-child(2) { animation-duration: 0.6s; animation-delay: 0.1s; }
+    .wave-bar:nth-child(3) { animation-duration: 0.9s; animation-delay: 0.05s; }
+    .wave-bar:nth-child(4) { animation-duration: 0.7s; animation-delay: 0.15s; }
+    .wave-bar:nth-child(5) { animation-duration: 0.85s; animation-delay: 0.08s; }
+
+    /* Shimmer loading bar */
+    .shimmer-bar {
+      background: linear-gradient(90deg, rgba(129,140,248,0.3) 0%, rgba(129,140,248,0.8) 50%, rgba(129,140,248,0.3) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s ease-in-out infinite;
     }
 
-    body {
-      margin: 0;
-      overscroll-behavior: none;
-      font-family: 'Nunito', sans-serif;
+    /* Floating star particles */
+    .star-particle { animation: starsFloat 2s ease-out forwards; }
+
+    /* Tap ripple */
+    .tap-ripple { animation: rippleOut 600ms ease-out forwards; }
+
+    /* Reduced motion */
+    .reduce-motion, .reduce-motion * {
+      animation-duration: 0ms !important;
+      animation-delay: 0ms !important;
+      transition-duration: 50ms !important;
     }
 
-    @keyframes breathe {
-
-      0%,
-      100% {
-        transform: scale(1);
-        opacity: 0.5;
-      }
-
-      50% {
-        transform: scale(1.1);
-        opacity: 0.7;
-      }
+    /* High contrast focus */
+    .high-contrast :focus-visible {
+      outline: 4px solid #FFD700 !important;
+      outline-offset: 4px !important;
     }
 
-    .ambient-orb {
-      animation: breathe 8s ease-in-out infinite;
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border:0;
     }
 
-    .ambient-orb-2 {
-      animation: breathe 10s ease-in-out infinite;
-      animation-delay: -3s;
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.2); border-radius: 999px; }
+
+    /* Slider */
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 28px; height: 28px;
+      border-radius: 50%; background: #4f46e5; cursor: pointer;
+      box-shadow: 0 2px 8px rgba(79,70,229,0.3);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: #4f46e5; cursor: pointer; border: 0;
     }
 
-    .ambient-orb-3 {
-      animation: breathe 12s ease-in-out infinite;
-      animation-delay: -6s;
-    }
+    /* Prevent zoom on double tap in reading mode */
+    .reading-zone { touch-action: manipulation; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
-    @keyframes float {
+    /* Base body — scrollable by default; views that need lock will apply .scroll-lock */
+    html { height: 100%; }
+    body { margin: 0; font-family: 'Inter', system-ui, sans-serif; min-height: 100%; min-height: 100dvh; }
+    body.scroll-lock { overflow: hidden; position: fixed; inset: 0; width: 100%; }
+    #root { min-height: 100%; min-height: 100dvh; }
 
-      0%,
-      100% {
-        transform: translateY(0) rotate(0deg);
-      }
-
-      50% {
-        transform: translateY(-20px) rotate(180deg);
-      }
-    }
-
-    .float {
-      animation: float 6s ease-in-out infinite;
-    }
-
-    .float-delay-1 {
-      animation-delay: -2s;
-    }
-
-    .float-delay-2 {
-      animation-delay: -4s;
-    }
-
-    @keyframes pulse-ring {
-      0% {
-        transform: scale(0.8);
-        opacity: 0.8;
-      }
-
-      50% {
-        transform: scale(1);
-        opacity: 0.4;
-      }
-
-      100% {
-        transform: scale(0.8);
-        opacity: 0.8;
-      }
-    }
-
-    .pulse-ring {
-      animation: pulse-ring 2s ease-in-out infinite;
-    }
-
-    @keyframes glow {
-
-      0%,
-      100% {
-        box-shadow: 0 0 30px rgba(255, 255, 255, 0.1);
-      }
-
-      50% {
-        box-shadow: 0 0 60px rgba(255, 255, 255, 0.2);
-      }
-    }
-
-    .glow {
-      animation: glow 3s ease-in-out infinite;
-    }
-
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    .fade-in-up {
-      animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
-
-    @keyframes pageTurn {
-      0% {
-        opacity: 1;
-        transform: translateX(0);
-      }
-
-      50% {
-        opacity: 0;
-        transform: translateX(50px);
-      }
-
-      51% {
-        opacity: 0;
-        transform: translateX(-50px);
-      }
-
-      100% {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .page-turn {
-      animation: pageTurn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    @keyframes burst {
-      0% {
-        transform: scale(0) rotate(0deg);
-        opacity: 1;
-      }
-
-      100% {
-        transform: scale(2) rotate(180deg);
-        opacity: 0;
-      }
-    }
-
-    .burst {
-      animation: burst 1s ease-out forwards;
-    }
-
-    @keyframes holdProgress {
-      from {
-        stroke-dashoffset: 100;
-      }
-
-      to {
-        stroke-dashoffset: 0;
-      }
-    }
-
-    .hold-progress {
-      animation: holdProgress 2s linear forwards;
-    }
+    /* iOS momentum scrolling for inner scrollable areas */
+    .ios-scroll { -webkit-overflow-scrolling: touch; overflow-y: auto; }
   </style>
+
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-
 <body>
   <div id="root"></div>
 
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect, useRef, useCallback } from 'https://esm.sh/react@18.3.1';
+    /* @jsxRuntime classic */
+    import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, ChevronRight, ChevronLeft, Volume2, Sparkles, X, Loader2, Maximize2, Minimize2, Star, RefreshCcw, Download, Gauge, Eye, Ear, Sun, Moon, ToggleLeft, ToggleRight, Bell, Settings, Hand, Heart } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
+
+    // ════════════════════════════════════════════════
+    //  CONSTANTS
+    // ════════════════════════════════════════════════
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
     const VOICES = [
-      { name: "af_heart", label: "Gentle", desc: "Warm bedtime voice", emoji: "🌙", color: "from-violet-500 to-purple-600" },
-      { name: "af_sky", label: "Cheerful", desc: "Bright & happy", emoji: "☀️", color: "from-amber-400 to-orange-500" },
-      { name: "bf_lily", label: "Soft", desc: "Calm & soothing", emoji: "🌸", color: "from-pink-400 to-rose-500" },
-      { name: "am_puck", label: "Playful", desc: "Fun & silly", emoji: "🎭", color: "from-emerald-400 to-teal-500" },
+      { name: "af_heart",   label: "Warm & Gentle",      desc: "Best for bedtime",     emoji: "🌙", color: "from-violet-500 to-purple-600"  },
+      { name: "af_sky",     label: "Bright & Cheerful",   desc: "Great for adventure",  emoji: "☀️", color: "from-amber-400 to-orange-500"   },
+      { name: "am_fenrir",  label: "Deep & Mysterious",   desc: "Legends and myths",    emoji: "🐺", color: "from-slate-600 to-slate-800"    },
+      { name: "am_puck",    label: "Playful & Fun",       desc: "Silly stories",        emoji: "🎭", color: "from-emerald-400 to-teal-600"   },
+      { name: "bf_lily",    label: "Soft & British",      desc: "Classic fairy tales",  emoji: "🌸", color: "from-pink-400 to-rose-500"      },
+      { name: "af_bella",   label: "Rich & Expressive",   desc: "Epic tales",           emoji: "✨", color: "from-indigo-500 to-blue-600"    },
     ];
 
     const SPEEDS = [
-      { label: "Slow & Cozy", value: 0.8, icon: Moon },
-      { label: "Just Right", value: 1.0, icon: Heart },
-      { label: "Energetic", value: 1.2, icon: Sun },
+      { label: "Slow & Cozy",   value: 0.85, desc: "Bedtime pace",       icon: "🌙" },
+      { label: "Natural",       value: 1.0,  desc: "Everyday reading",   icon: "📖" },
+      { label: "Lively",        value: 1.15, desc: "Energetic stories",  icon: "⚡" },
+      { label: "Quick",         value: 1.3,  desc: "Rapid adventures",   icon: "🚀" },
     ];
 
-    const THEMES = [
-      { id: 'default', label: 'Default', desc: 'Dark ambient', bg: 'from-slate-950 via-slate-900 to-slate-950', text: 'text-white', accent: 'indigo' },
-      { id: 'high-contrast-wb', label: 'High Contrast', desc: 'White on Black', bg: 'from-black to-black', text: 'text-white', accent: 'white' },
-      { id: 'high-contrast-yb', label: 'Yellow/Black', desc: 'Yellow on Black', bg: 'from-black to-black', text: 'text-yellow-400', accent: 'yellow' },
-      { id: 'cream', label: 'Soft Cream', desc: 'Gentle on eyes', bg: 'from-amber-50 via-orange-50 to-amber-50', text: 'text-amber-950', accent: 'amber' },
-    ];
+    const DEFAULT_A11Y = {
+      fontSize: 'large',
+      reducedMotion: false,
+      boldText: true,
+      theme: 'light',
+      soundCues: true,
+      hapticFeedback: true,
+      spokenNav: false,
+      autoAdvance: false,
+      soundVolume: 0.8,
+    };
+
+    // ── Platform detection ──
+    const _ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(_ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isSafariEngine = isIOS || (/safari/i.test(_ua) && !/chrome|chromium|edg/i.test(_ua));
+    // Edge on iPad still uses WebKit, so treat it like Safari for audio purposes
+    const isWebKit = isIOS || /AppleWebKit/.test(_ua);
 
     const yieldToBrowser = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const detectWebGPU = async () => { try { if (!navigator.gpu) return false; const a = await navigator.gpu.requestAdapter(); return !!a; } catch(e) { console.warn('WebGPU detection failed:', e); return false; } };
+    const loadA11ySettings = () => { try { const s = localStorage.getItem('storytap-a11y'); return s ? { ...DEFAULT_A11Y, ...JSON.parse(s) } : { ...DEFAULT_A11Y }; } catch { return { ...DEFAULT_A11Y }; } };
+    const saveA11ySettings = (s) => { try { localStorage.setItem('storytap-a11y', JSON.stringify(s)); } catch {} };
 
-    // Robust WebGPU detection - Safari often has partial support that crashes
-    const detectWebGPU = async () => {
+    // ── Safari audio unlock ──
+    // Safari/WebKit requires a user-gesture-initiated play() to "unlock"
+    // the <audio> element. We do a silent unlock on first tap.
+    let _audioUnlocked = !isWebKit; // already unlocked on non-WebKit
+    const unlockAudio = (audioEl) => {
+      if (_audioUnlocked || !audioEl) return;
       try {
-        if (!navigator.gpu) return false;
-        const adapter = await navigator.gpu.requestAdapter();
-        if (!adapter) return false;
-        // Check if it's actually usable (Safari may fail here)
-        const device = await adapter.requestDevice();
-        device.destroy();
-        return true;
-      } catch (e) {
-        console.warn('WebGPU not available:', e);
-        return false;
+        // Create a tiny silent WAV and play it to unlock the element
+        const sr = 22050, len = sr * 0.01; // 10ms silence
+        const buf = new ArrayBuffer(44 + len * 2);
+        const v = new DataView(buf);
+        const writeStr = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+        writeStr(0, 'RIFF'); v.setUint32(4, 36 + len * 2, true); writeStr(8, 'WAVE');
+        writeStr(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+        v.setUint16(22, 1, true); v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true);
+        v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+        writeStr(36, 'data'); v.setUint32(40, len * 2, true);
+        // all sample bytes are 0 (silence)
+        const blob = new Blob([buf], { type: 'audio/wav' });
+        audioEl.src = URL.createObjectURL(blob);
+        audioEl.volume = 0.01;
+        const p = audioEl.play();
+        if (p && p.then) p.then(() => { audioEl.pause(); audioEl.volume = 1; audioEl.src = ''; _audioUnlocked = true; }).catch(() => {});
+        else { _audioUnlocked = true; }
+      } catch(e) { console.warn('Audio unlock failed:', e); _audioUnlocked = true; }
+    };
+
+    // ── Safe blob-to-dataURL (Safari blob URL workaround) ──
+    // Safari sometimes garbage-collects blob URLs before <audio> can use them.
+    // Convert to base64 data URL on WebKit engines for reliability.
+    const blobToSafeUrl = async (blob) => {
+      if (!isWebKit) return URL.createObjectURL(blob);
+      // Convert blob to data URL for Safari reliability
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('FileReader failed'));
+        reader.readAsDataURL(blob);
+      });
+    };
+
+
+    // ════════════════════════════════════════════════
+    //  SOUND CUE ENGINE
+    //  Every interaction has a unique, recognizable
+    //  sound so a blind child navigates by audio alone.
+    // ════════════════════════════════════════════════
+    const SoundEngine = {
+      ctx: null,
+      init() {
+        if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return this.ctx;
+      },
+      _note(freq, type, t, dur, vol = 0.12) {
+        const ctx = this.ctx, o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = type; o.frequency.setValueAtTime(freq, t);
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(t); o.stop(t + dur + 0.05);
+      },
+
+      tapConfirm(vol = 0.8) {
+        try {
+          const ctx = this.init(), now = ctx.currentTime, v = 0.08 * vol;
+          const bLen = ctx.sampleRate * 0.015, buf = ctx.createBuffer(1, bLen, ctx.sampleRate), d = buf.getChannelData(0);
+          for (let i = 0; i < bLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bLen, 8);
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const g = ctx.createGain(); g.gain.setValueAtTime(v * 1.5, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+          const o = ctx.createOscillator(), og = ctx.createGain();
+          o.type = 'sine'; o.frequency.setValueAtTime(1200, now);
+          og.gain.setValueAtTime(v, now); og.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+          src.connect(g); g.connect(ctx.destination);
+          o.connect(og); og.connect(ctx.destination);
+          src.start(now); o.start(now); o.stop(now + 0.06);
+        } catch {}
+      },
+
+      storyStart(vol = 0.8) {
+        try {
+          const ctx = this.init(), now = ctx.currentTime, v = 0.14 * vol;
+          [261.63, 329.63, 392.00, 523.25].forEach((f, i) => this._note(f, 'triangle', now + i * 0.15, 0.6, v));
+          setTimeout(() => { const t = ctx.currentTime; this._note(1046.50, 'sine', t, 0.8, v * 0.3); this._note(1318.51, 'sine', t + 0.1, 0.6, v * 0.2); }, 600);
+        } catch {}
+      },
+
+      pageForward(vol = 0.8) {
+        try {
+          const ctx = this.init(), now = ctx.currentTime, v = 0.1 * vol;
+          this._note(523.25, 'sine', now, 0.25, v);
+          this._note(659.25, 'sine', now + 0.1, 0.35, v);
+          const bLen = ctx.sampleRate * 0.15, buf = ctx.createBuffer(1, bLen, ctx.sampleRate), d = buf.getChannelData(0);
+          for (let i = 0; i < bLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i/bLen, 4) * 0.3;
+          const src = ctx.createBufferSource(); src.buffer = buf;
+          const g = ctx.createGain(); g.gain.setValueAtTime(v * 0.5, now); g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          src.connect(g); g.connect(ctx.destination); src.start(now);
+        } catch {}
+      },
+
+      pageBackward(vol = 0.8) {
+        try { const ctx = this.init(), now = ctx.currentTime, v = 0.1 * vol; this._note(659.25, 'sine', now, 0.25, v); this._note(523.25, 'sine', now + 0.1, 0.35, v); } catch {}
+      },
+
+      storyEnd(vol = 0.8) {
+        try {
+          const ctx = this.init(), now = ctx.currentTime, v = 0.12 * vol;
+          [523.25, 587.33, 659.25, 698.46, 783.99, 880.00, 987.77, 1046.50].forEach((f, i) => this._note(f, 'triangle', now + i * 0.1, 0.4, v));
+          setTimeout(() => { const t = ctx.currentTime; [523.25, 659.25, 783.99, 1046.50].forEach(f => this._note(f, 'sine', t, 1.5, v)); }, 900);
+        } catch {}
+      },
+
+      _loadingInterval: null,
+      startLoadingPulse(vol = 0.8) {
+        this.stopLoadingPulse();
+        const pulse = () => { try { const ctx = this.init(), now = ctx.currentTime, v = 0.06 * vol; this._note(440, 'sine', now, 0.15, v); this._note(440, 'sine', now + 0.2, 0.15, v * 0.6); } catch {} };
+        pulse(); this._loadingInterval = setInterval(pulse, 1500);
+      },
+      stopLoadingPulse() { if (this._loadingInterval) { clearInterval(this._loadingInterval); this._loadingInterval = null; } },
+
+      loadingDone(vol = 0.8) {
+        try { this.stopLoadingPulse(); const ctx = this.init(), now = ctx.currentTime, v = 0.1 * vol; this._note(880, 'sine', now, 0.15, v); this._note(1108.73, 'sine', now + 0.08, 0.3, v); } catch {}
+      },
+
+      error(vol = 0.8) { try { const ctx = this.init(), now = ctx.currentTime, v = 0.1 * vol; this._note(220, 'triangle', now, 0.3, v); this._note(196, 'triangle', now + 0.15, 0.3, v); } catch {} },
+      toggle(vol = 0.8) { try { const ctx = this.init(), now = ctx.currentTime; this._note(800, 'sine', now, 0.08, 0.05 * vol); } catch {} },
+      boundaryWarning(vol = 0.8) { try { const ctx = this.init(), now = ctx.currentTime, v = 0.08 * vol; this._note(300, 'square', now, 0.08, v); this._note(250, 'square', now + 0.1, 0.08, v); } catch {} },
+    };
+
+    const SpokenNav = {
+      synth: window.speechSynthesis || null,
+      speak(text, rate = 0.9, onDone = null) {
+        if (!this.synth) { if (onDone) onDone(); return; }
+        this.synth.cancel();
+        const utt = new SpeechSynthesisUtterance(text);
+        utt.rate = rate; utt.pitch = 1.1; utt.volume = 1.0; utt.lang = 'en-US';
+        if (onDone) {
+          const timeout = setTimeout(onDone, 5000);
+          utt.onend = () => { clearTimeout(timeout); onDone(); };
+          utt.onerror = () => { clearTimeout(timeout); onDone(); };
+        }
+        this.synth.speak(utt);
+      },
+      stop() { if (this.synth) this.synth.cancel(); }
+    };
+
+    const Haptic = {
+      ok: 'vibrate' in navigator,
+      tap()        { if (this.ok) navigator.vibrate(15); },
+      pageTurn()   { if (this.ok) navigator.vibrate([10, 30, 10]); },
+      storyStart() { if (this.ok) navigator.vibrate([20, 40, 20, 40, 30]); },
+      storyEnd()   { if (this.ok) navigator.vibrate([30, 50, 30, 50, 30, 50, 60]); },
+      error()      { if (this.ok) navigator.vibrate([50, 100, 50]); },
+      loading()    { if (this.ok) navigator.vibrate(8); },
+    };
+
+
+    // ════════════════════════════════════════════════
+    //  TAP RIPPLE COMPONENT
+    //  Visual confirmation of every tap — centered on
+    //  the touch point so the sighted parent sees it.
+    // ════════════════════════════════════════════════
+    const TapRipple = ({ x, y, color = 'rgba(255,255,255,0.3)' }) => (
+      <div
+        className="tap-ripple fixed pointer-events-none z-50 rounded-full"
+        style={{ left: x - 40, top: y - 40, width: 80, height: 80, background: `radial-gradient(circle, ${color} 0%, transparent 70%)` }}
+      />
+    );
+
+
+    // ════════════════════════════════════════════════
+    //  AUDIO VISUALIZER
+    //  Animated bars that show while narration plays.
+    //  Pure visual delight for the watching parent.
+    // ════════════════════════════════════════════════
+    const AudioVisualizer = ({ playing, theme }) => {
+      const barColor = theme === 'high-contrast' ? 'bg-yellow-400' : theme === 'dark' ? 'bg-indigo-400' : 'bg-indigo-500/60';
+      return (
+        <div className="flex items-end gap-1 h-6" aria-hidden="true">
+          {[0,1,2,3,4].map(i => (
+            <div
+              key={i}
+              className={`w-1 rounded-full transition-all duration-300 ${barColor} ${playing ? 'wave-bar' : ''}`}
+              style={{ height: playing ? undefined : '4px', opacity: playing ? 1 : 0.3 }}
+            />
+          ))}
+        </div>
+      );
+    };
+
+
+    // ════════════════════════════════════════════════
+    //  PROGRESS DOTS
+    //  Minimal page progress at bottom of reading
+    //  screen — visible but not distracting.
+    // ════════════════════════════════════════════════
+    const ProgressDots = ({ total, current, theme }) => {
+      if (total > 20) {
+        // Too many pages for dots, use a slim bar
+        const pct = total > 0 ? ((current + 1) / total) * 100 : 0;
+        return (
+          <div className="w-32 h-1 rounded-full overflow-hidden bg-white/10" aria-hidden="true">
+            <div className="h-full rounded-full bg-white/40 transition-all duration-500" style={{ width: `${pct}%` }} />
+          </div>
+        );
       }
+      return (
+        <div className="flex gap-1.5 items-center" aria-hidden="true">
+          {Array.from({ length: total }, (_, i) => (
+            <div
+              key={i}
+              className={`rounded-full transition-all duration-500 ${
+                i === current
+                  ? `w-6 h-2 ${theme === 'high-contrast' ? 'bg-yellow-400' : theme === 'dark' ? 'bg-indigo-400' : 'bg-indigo-500'}`
+                  : i < current
+                    ? `w-2 h-2 ${theme === 'high-contrast' ? 'bg-yellow-400/40' : 'bg-slate-400/30'}`
+                    : `w-2 h-2 ${theme === 'high-contrast' ? 'bg-yellow-400/15' : 'bg-slate-300/20'}`
+              }`}
+            />
+          ))}
+        </div>
+      );
     };
 
-    // Detect Safari/iOS for special handling
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) ||
-      /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-    // =============================================
-    // AUDIO CUE ENGINE
-    // =============================================
-    const useAudioCues = (enabled, vibrationEnabled) => {
-      const ctxRef = useRef(null);
-      const getCtx = useCallback(() => {
-        if (!ctxRef.current) ctxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctxRef.current.state === 'suspended') ctxRef.current.resume();
-        return ctxRef.current;
-      }, []);
-
-      const vibrate = useCallback((pattern) => { if (vibrationEnabled && navigator.vibrate) navigator.vibrate(pattern); }, [vibrationEnabled]);
-
-      const play = useCallback((type) => {
-        if (!enabled) { vibrate(type === 'tap' ? 25 : type === 'story_start' ? [40, 40, 80] : 15); return; }
-
-        const ctx = getCtx();
-        const now = ctx.currentTime;
-
-        if (type === 'tap') {
-          vibrate(25);
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(880, now);
-          osc.frequency.exponentialRampToValueAtTime(1320, now + 0.05);
-          gain.gain.setValueAtTime(0.12, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-          osc.connect(gain).connect(ctx.destination);
-          osc.start(now); osc.stop(now + 0.1);
-        }
-
-        if (type === 'story_start') {
-          vibrate([40, 40, 80]);
-          [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0, now + i * 0.1);
-            gain.gain.linearRampToValueAtTime(0.1, now + i * 0.1 + 0.03);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.35);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start(now + i * 0.1); osc.stop(now + i * 0.1 + 0.4);
-          });
-        }
-
-        if (type === 'ready') {
-          vibrate(15);
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = 698.46;
-          gain.gain.setValueAtTime(0, now);
-          gain.gain.linearRampToValueAtTime(0.06, now + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-          osc.connect(gain).connect(ctx.destination);
-          osc.start(now); osc.stop(now + 0.6);
-        }
-
-        if (type === 'advance') {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(440, now);
-          osc.frequency.exponentialRampToValueAtTime(660, now + 0.12);
-          gain.gain.setValueAtTime(0, now);
-          gain.gain.linearRampToValueAtTime(0.05, now + 0.03);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-          osc.connect(gain).connect(ctx.destination);
-          osc.start(now); osc.stop(now + 0.2);
-        }
-
-        if (type === 'story_end') {
-          vibrate([80, 40, 80, 40, 150]);
-          [[523.25, 0], [659.25, 0.12], [783.99, 0.24], [1046.50, 0.36]].forEach(([freq, delay]) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'triangle';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0, now + delay);
-            gain.gain.linearRampToValueAtTime(0.12, now + delay + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.5);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start(now + delay); osc.stop(now + delay + 0.6);
-          });
-        }
-
-        if (type === 'busy') {
-          vibrate(10);
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = 200;
-          gain.gain.setValueAtTime(0.06, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-          osc.connect(gain).connect(ctx.destination);
-          osc.start(now); osc.stop(now + 0.15);
-        }
-      }, [enabled, getCtx, vibrate]);
-
-      return { play, vibrate };
-    };
-
-    // =============================================
-    // MAIN APPLICATION
-    // =============================================
-    const App = () => {
-      const [mode, setMode] = useState('setup');
-      const [storyTitle, setStoryTitle] = useState("The Brave Little Bear");
-      const [rawText, setRawText] = useState("Once upon a time, there was a little bear who lived in a cozy cave.\nThe bear loved honey more than anything in the world.\nOne sunny morning, the bear smelled something sweet.\nIt was coming from a tall, tall tree!\nThe bear looked up and saw a beehive.\nBuzz buzz buzz, sang the busy bees.\nThe little bear was scared, but also very hungry.\nSo the bear took a deep breath and started to climb.\nUp, up, up went the brave little bear!\nThe bees flew around, but the bear kept going.\nFinally, the bear reached the golden honey.\nYum yum yum! It was the sweetest honey ever.\nThe bear climbed down with a happy, sticky smile.\nAnd from that day on, everyone called the bear the bravest in the forest.\nThe end.");
-      const [sentences, setSentences] = useState([]);
-      const [currentIndex, setCurrentIndex] = useState(-1);
-      const [voice, setVoice] = useState(VOICES[0].name);
-      const [speed, setSpeed] = useState(1.0);
-      const [isTransitioning, setIsTransitioning] = useState(false);
-      const [loadError, setLoadError] = useState(null);
-
-      // Accessibility Settings
-      const [showSettings, setShowSettings] = useState(false);
-      const [soundCuesEnabled, setSoundCuesEnabled] = useState(true);
-      const [vibrationEnabled, setVibrationEnabled] = useState(true);
-      const [theme, setTheme] = useState('default');
-      const [textSize, setTextSize] = useState('normal'); // 'normal', 'large', 'huge'
-
-      // Model/Audio State
-      const [modelReady, setModelReady] = useState(false);
-      const [modelProgress, setModelProgress] = useState(0);
-      const [isGenerating, setIsGenerating] = useState(false);
-      const [isPlaying, setIsPlaying] = useState(false);
-
-      // Exit button hold state
-      const [isHoldingExit, setIsHoldingExit] = useState(false);
-      const [holdProgress, setHoldProgress] = useState(0);
-      const holdTimerRef = useRef(null);
-      const holdStartRef = useRef(null);
-
-      const ttsRef = useRef(null);
-      const audioRef = useRef(null);
-      const cacheRef = useRef({});
-      const prefetchRef = useRef(new Set());
-
-      const { play: playCue } = useAudioCues(soundCuesEnabled, vibrationEnabled);
-
-      // Get current theme config
-      const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
-
-      // Text size classes
-      const getTextSizeClass = () => {
-        if (textSize === 'huge') return 'text-4xl md:text-6xl lg:text-7xl';
-        if (textSize === 'large') return 'text-3xl md:text-5xl lg:text-6xl';
-        return 'text-2xl md:text-4xl lg:text-5xl';
+    // ════════════════════════════════════════════════
+    //  ACCESSIBILITY SETTINGS PANEL
+    // ════════════════════════════════════════════════
+    const AccessibilityPanel = ({ settings, onChange, onClose }) => {
+      const update = (key, value) => {
+        const next = { ...settings, [key]: value };
+        onChange(next);
+        if (next.soundCues) SoundEngine.toggle(next.soundVolume);
       };
 
-      // === EXIT BUTTON HOLD LOGIC ===
-      const startHoldExit = (e) => {
-        e.stopPropagation();
-        setIsHoldingExit(true);
-        holdStartRef.current = Date.now();
-
-        const updateProgress = () => {
-          const elapsed = Date.now() - holdStartRef.current;
-          const progress = Math.min((elapsed / 2000) * 100, 100);
-          setHoldProgress(progress);
-
-          if (progress >= 100) {
-            exitStory();
-            endHoldExit();
-          } else {
-            holdTimerRef.current = requestAnimationFrame(updateProgress);
+      const Toggle = ({ label, description, settingKey }) => (
+        <button
+          onClick={() => update(settingKey, !settings[settingKey])}
+          className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all text-left ${
+            settings[settingKey] ? 'border-indigo-500 bg-indigo-50/80' : 'border-slate-100 bg-white hover:border-slate-200'
+          }`}
+          role="switch" aria-checked={settings[settingKey]}
+          aria-label={`${label}: currently ${settings[settingKey] ? 'on' : 'off'}`}
+        >
+          <div>
+            <div className="font-bold text-slate-800 text-sm">{label}</div>
+            <div className="text-xs text-slate-400 mt-0.5">{description}</div>
+          </div>
+          {settings[settingKey]
+            ? <ToggleRight size={28} className="text-indigo-600 flex-shrink-0" />
+            : <ToggleLeft size={28} className="text-slate-300 flex-shrink-0" />
           }
-        };
-        holdTimerRef.current = requestAnimationFrame(updateProgress);
-      };
+        </button>
+      );
 
-      const endHoldExit = () => {
-        setIsHoldingExit(false);
-        setHoldProgress(0);
-        if (holdTimerRef.current) {
-          cancelAnimationFrame(holdTimerRef.current);
-          holdTimerRef.current = null;
-        }
-      };
-
-      // Model loading with robust error handling for Safari/iPad
-      const loadModel = useCallback(async () => {
-        if (ttsRef.current) { setModelReady(true); return; }
-        setMode('loading');
-        setLoadError(null);
-        setModelProgress(0);
-
-        try {
-          await yieldToBrowser();
-
-          // Check WebGPU support - skip on Safari due to instability
-          let hasWebGPU = false;
-          if (!isSafari) {
-            try {
-              hasWebGPU = await detectWebGPU();
-            } catch (e) {
-              console.warn('WebGPU detection failed, using WASM:', e);
-            }
-          }
-
-          console.log(`Loading TTS model with ${hasWebGPU ? 'WebGPU' : 'WASM'}...`);
-
-          const tts = await KokoroTTS.from_pretrained(MODEL_ID, {
-            // Use q8 for WASM (more stable than q4 on mobile), fp32 for WebGPU
-            dtype: hasWebGPU ? 'fp32' : 'q8',
-            device: hasWebGPU ? 'webgpu' : 'wasm',
-            progress_callback: (p) => {
-              if (p.status === 'progress' && p.total) {
-                setModelProgress(Math.round((p.loaded / p.total) * 100));
-              }
-            }
-          });
-
-          ttsRef.current = tts;
-          setModelReady(true);
-          console.log('TTS model loaded successfully');
-
-        } catch (error) {
-          console.error('Failed to load TTS model:', error);
-          setLoadError(error.message || 'Failed to load voice engine. Please try again.');
-          setMode('setup');
-        }
-      }, []);
-
-      const generateAudio = useCallback(async (text) => {
-        if (!ttsRef.current) return null;
-        try {
-          await yieldToBrowser();
-          const audio = await ttsRef.current.generate(text, { voice, speed });
-          return URL.createObjectURL(audio.toBlob());
-        } catch (error) {
-          console.error('TTS generation error:', error);
-          return null;
-        }
-      }, [voice, speed]);
-
-      const prefetch = useCallback(async (idx, list) => {
-        for (const i of [idx, idx + 1, idx + 2].filter(x => x >= 0 && x < list.length)) {
-          if (!cacheRef.current[i] && !prefetchRef.current.has(i)) {
-            prefetchRef.current.add(i);
-            try { const url = await generateAudio(list[i]); if (url) cacheRef.current[i] = url; } catch { }
-            prefetchRef.current.delete(i);
-          }
-        }
-      }, [generateAudio]);
-
-      const playSentence = useCallback(async (idx, list) => {
-        if (idx < 0 || idx >= list.length) return;
-        setIsPlaying(false);
-
-        // Stop any current audio
-        if (audioRef.current) {
-          try {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-          } catch (e) { /* ignore */ }
-        }
-
-        let url = cacheRef.current[idx];
-        if (!url) {
-          setIsGenerating(true);
-          try {
-            url = await generateAudio(list[idx]);
-            if (url) cacheRef.current[idx] = url;
-          } catch (e) {
-            console.error('Generate error:', e);
-            setIsGenerating(false);
-            playCue('ready');
-            return;
-          }
-          setIsGenerating(false);
-        }
-
-        if (!url) {
-          console.warn('No audio URL generated for index', idx);
-          playCue('ready');
-          return;
-        }
-
-        if (audioRef.current) {
-          try {
-            audioRef.current.src = url;
-            // Safari requires play() to be in direct response to user action
-            // The promise may reject if autoplay is blocked
-            await audioRef.current.play();
-            setIsPlaying(true);
-          } catch (e) {
-            console.error('Audio play error:', e);
-            // On Safari, try to recover by showing ready state
-            setIsPlaying(false);
-            playCue('ready');
-          }
-        }
-
-        // Start prefetching next sentences
-        prefetch(idx + 1, list);
-      }, [generateAudio, prefetch, playCue]);
-
-      const handleTap = useCallback(() => {
-        if (isGenerating || isTransitioning) { playCue('busy'); return; }
-        if (isPlaying) { playCue('busy'); return; }
-
-        playCue('tap');
-        setIsTransitioning(true);
-
-        const nextIndex = currentIndex + 1;
-
-        if (currentIndex === -1) {
-          playCue('story_start');
-          setTimeout(() => { setCurrentIndex(0); playSentence(0, sentences); setIsTransitioning(false); }, 500);
-          return;
-        }
-
-        if (nextIndex >= sentences.length) {
-          playCue('story_end');
-          setTimeout(() => { setCurrentIndex(sentences.length); setIsTransitioning(false); }, 100);
-          return;
-        }
-
-        playCue('advance');
-        setTimeout(() => { setCurrentIndex(nextIndex); playSentence(nextIndex, sentences); setIsTransitioning(false); }, 150);
-      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, playCue, playSentence]);
-
-      const handleAudioEnded = useCallback(() => { setIsPlaying(false); if (currentIndex < sentences.length) playCue('ready'); }, [currentIndex, sentences.length, playCue]);
-
-      const startStory = async () => {
-        const allSentences = [];
-        rawText.split('\n').forEach(line => {
-          (line.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || []).forEach(s => { const c = s.trim(); if (c) allSentences.push(c); });
-        });
-        if (!allSentences.length) return;
-
-        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
-        cacheRef.current = {};
-        setSentences(allSentences);
-        setCurrentIndex(-1);
-
-        // Load model if needed
-        if (!ttsRef.current) {
-          await loadModel();
-          // Check if model loaded successfully
-          if (!ttsRef.current) {
-            // Model failed to load - error is already shown, stay on setup
-            return;
-          }
-        }
-
-        setMode('reading');
-        setTimeout(() => prefetch(0, allSentences), 100);
-      };
-
-      const exitStory = () => {
-        if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
-        setMode('setup');
-        setCurrentIndex(-1);
-        setIsPlaying(false);
-        setIsGenerating(false);
-      };
-
-      // =============================================
-      // SETTINGS MODAL
-      // =============================================
-      const SettingsModal = () => (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">Accessibility Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                <X size={20} className="text-slate-500" />
+      return (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+          role="dialog" aria-modal="true" aria-label="Accessibility Settings"
+        >
+          <div className="bg-white rounded-[2rem] shadow-2xl max-w-lg w-full max-h-[85vh] max-h-[85dvh] overflow-y-auto ios-scroll" onClick={(e) => e.stopPropagation()}>
+            {/* Sticky header */}
+            <div className="sticky top-0 bg-white/95 backdrop-blur-md rounded-t-[2rem] border-b border-slate-100 p-6 pb-4 z-10 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-200">
+                  <Settings size={20} />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-800">Accessibility</h2>
+                  <p className="text-[11px] text-slate-400 font-medium">Visual &amp; audio accommodation</p>
+                </div>
+              </div>
+              <button onClick={onClose} className="p-2.5 rounded-xl hover:bg-slate-100 transition-all" aria-label="Close settings">
+                <X size={20} className="text-slate-400" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              {/* Sound Cues */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                    {soundCuesEnabled ? <Volume2 size={20} className="text-indigo-600" /> : <VolumeX size={20} className="text-slate-400" />}
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Sound Cues</div>
-                    <div className="text-sm text-slate-500">Audio feedback on interactions</div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSoundCuesEnabled(!soundCuesEnabled)}
-                  className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? 'bg-indigo-500' : 'bg-slate-200'}`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-1'}`} />
-                </button>
-              </div>
-
-              {/* Vibration */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <Vibrate size={20} className="text-purple-600" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Vibration</div>
-                    <div className="text-sm text-slate-500">Haptic feedback on taps</div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setVibrationEnabled(!vibrationEnabled)}
-                  className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? 'bg-purple-500' : 'bg-slate-200'}`}
-                >
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-1'}`} />
-                </button>
-              </div>
-
-              {/* Visual Theme */}
+            <div className="p-6 pt-4 space-y-6">
+              {/* Visual */}
               <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <Palette size={20} className="text-amber-600" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Visual Theme</div>
-                    <div className="text-sm text-slate-500">Reading mode appearance</div>
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-purple-500 flex items-center gap-2">
+                  <Eye size={12} /> Visual
+                </h3>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500">Theme</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'light', label: 'Light', icon: <Sun size={14} />, bg: 'bg-white border-slate-200', preview: 'bg-slate-100' },
+                      { value: 'dark', label: 'Dark', icon: <Moon size={14} />, bg: 'bg-slate-800 border-slate-700 text-white', preview: 'bg-slate-900' },
+                      { value: 'high-contrast', label: 'High\u00A0Contrast', icon: <Eye size={14} />, bg: 'bg-black border-yellow-400 text-yellow-400', preview: 'bg-black' },
+                    ].map(t => (
+                      <button key={t.value} onClick={() => update('theme', t.value)}
+                        className={`p-3 rounded-xl border-2 text-center text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+                          settings.theme === t.value ? 'ring-2 ring-indigo-500 ring-offset-2 ' + t.bg : 'border-slate-100 text-slate-400 hover:border-slate-200'
+                        }`}
+                        aria-pressed={settings.theme === t.value}
+                      >
+                        {t.icon}<span>{t.label}</span>
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  {THEMES.map(t => (
-                    <button
-                      key={t.id}
-                      onClick={() => setTheme(t.id)}
-                      className={`p-3 rounded-xl border-2 text-left transition-all ${theme === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}
-                    >
-                      <div className={`w-full h-6 rounded-lg bg-gradient-to-r ${t.bg} mb-2 border border-slate-200`} />
-                      <div className="font-bold text-sm text-slate-800">{t.label}</div>
-                      <div className="text-xs text-slate-500">{t.desc}</div>
-                    </button>
-                  ))}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-500">Text Size</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'normal', label: 'Normal', size: '15px' },
+                      { value: 'large', label: 'Large', size: '21px' },
+                      { value: 'xlarge', label: 'Extra Large', size: '28px' },
+                    ].map(s => (
+                      <button key={s.value} onClick={() => update('fontSize', s.value)}
+                        className={`p-3 rounded-xl border-2 text-center font-bold flex flex-col items-center gap-1 transition-all ${
+                          settings.fontSize === s.value ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-400'
+                        }`}
+                        aria-pressed={settings.fontSize === s.value}
+                      >
+                        <span style={{ fontSize: s.size, lineHeight: 1.1 }}>Aa</span>
+                        <span className="text-[10px]">{s.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Toggle label="Bold Text" description="Heavier weight for readability" settingKey="boldText" />
+                <Toggle label="Reduced Motion" description="Minimize animations" settingKey="reducedMotion" />
+              </div>
+
+              {/* Audio */}
+              <div className="space-y-3">
+                <h3 className="text-[11px] font-black uppercase tracking-widest text-indigo-500 flex items-center gap-2">
+                  <Ear size={12} /> Audio &amp; Feedback
+                </h3>
+                <Toggle label="Sound Cues" description="Distinct sounds for taps, turns, start & end" settingKey="soundCues" />
+                <Toggle label="Spoken Navigation" description="Announce page numbers aloud before reading" settingKey="spokenNav" />
+                <Toggle label="Haptic Feedback" description="Vibrate on tap (mobile)" settingKey="hapticFeedback" />
+                <Toggle label="Auto-Advance" description="Next page automatically after narration" settingKey="autoAdvance" />
+                <div className="space-y-2 p-4 rounded-2xl border-2 border-slate-50 bg-slate-50/50">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700 text-sm" htmlFor="vol-slider">Cue Volume</label>
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">{Math.round(settings.soundVolume * 100)}%</span>
+                  </div>
+                  <input id="vol-slider" type="range" min="0" max="1" step="0.05"
+                    value={settings.soundVolume} onChange={(e) => update('soundVolume', parseFloat(e.target.value))}
+                    className="w-full h-2 bg-slate-200 rounded-full appearance-none cursor-pointer"
+                    aria-label={`Volume: ${Math.round(settings.soundVolume * 100)}%`}
+                  />
                 </div>
               </div>
 
-              {/* Text Size */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                    <Eye size={20} className="text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-800">Text Size</div>
-                    <div className="text-sm text-slate-500">Story text size</div>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
+              {/* Test Sounds */}
+              <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-4 space-y-3">
+                <h4 className="text-[11px] font-black uppercase tracking-widest text-indigo-400">Preview Sounds</h4>
+                <div className="grid grid-cols-2 gap-2">
                   {[
-                    { id: 'normal', label: 'Normal', sample: 'Aa' },
-                    { id: 'large', label: 'Large', sample: 'Aa' },
-                    { id: 'huge', label: 'Huge', sample: 'Aa' },
+                    { label: 'Tap Click', fn: () => SoundEngine.tapConfirm(settings.soundVolume) },
+                    { label: 'Page Turn', fn: () => SoundEngine.pageForward(settings.soundVolume) },
+                    { label: 'Story Start', fn: () => SoundEngine.storyStart(settings.soundVolume) },
+                    { label: 'Story End', fn: () => SoundEngine.storyEnd(settings.soundVolume) },
+                    { label: 'Loading', fn: () => { SoundEngine.startLoadingPulse(settings.soundVolume); setTimeout(() => SoundEngine.loadingDone(settings.soundVolume), 3000); } },
+                    { label: 'Boundary', fn: () => SoundEngine.boundaryWarning(settings.soundVolume) },
                   ].map(s => (
-                    <button
-                      key={s.id}
-                      onClick={() => setTextSize(s.id)}
-                      className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${textSize === s.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}
+                    <button key={s.label} onClick={s.fn}
+                      className="p-2.5 bg-white rounded-xl border border-indigo-100/80 text-xs font-bold text-indigo-600 hover:bg-indigo-50 transition-all flex items-center gap-1.5 justify-center shadow-sm"
                     >
-                      <div className={`font-bold mb-1 ${s.id === 'huge' ? 'text-2xl' : s.id === 'large' ? 'text-xl' : 'text-base'}`}>{s.sample}</div>
-                      <div className="text-xs text-slate-500">{s.label}</div>
+                      <Bell size={12} /> {s.label}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100">
-              <button onClick={() => setShowSettings(false)} className="w-full py-3 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors">
+            {/* Sticky footer */}
+            <div className="sticky bottom-0 bg-white/95 backdrop-blur-md rounded-b-[2rem] border-t border-slate-100 p-4">
+              <button onClick={onClose}
+                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-base rounded-xl shadow-lg shadow-indigo-200 hover:shadow-xl transition-all"
+              >
                 Done
               </button>
             </div>
           </div>
         </div>
       );
+    };
 
-      // =============================================
-      // LOADING SCREEN
-      // =============================================
-      if (mode === 'loading') {
-        return (
-          <div className="fixed inset-0 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex flex-col items-center justify-center p-8">
-            <div className="relative mb-8">
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-2xl shadow-indigo-500/30">
-                <Wand2 size={40} className="text-white animate-pulse" />
+
+    // ════════════════════════════════════════════════
+    //  MAIN APP
+    // ════════════════════════════════════════════════
+    const App = () => {
+      const [view, setView] = useState('setup');
+      const [storyTitle, setStoryTitle] = useState("The Little Star");
+      const [rawText, setRawText] = useState("Once upon a time, there was a tiny star named Sparky.\nSparky loved to dance across the night sky.\nOne night, Sparky saw a lonely owl sitting on a tree.\n\"Hello there,\" whispered Sparky. \"Why do you look so sad?\"\nThe owl blinked slowly. \"Everyone is asleep. I have no one to talk to.\"\nSparky twirled and spun, showering the owl with golden sparkles.\n\"Then I'll keep you company every single night,\" Sparky promised.\nAnd from that night on, whenever the owl looked up, Sparky was there, shining just for him.");
+      const [lines, setLines] = useState([]);
+      const [currentIndex, setCurrentIndex] = useState(-1);
+      const [selectedVoice, setSelectedVoice] = useState(VOICES[0].name);
+      const [selectedSpeed, setSelectedSpeed] = useState(SPEEDS[1].value);
+
+      const [modelReady, setModelReady] = useState(false);
+      const [modelLoadProgress, setModelLoadProgress] = useState('');
+      const [modelLoadPercent, setModelLoadPercent] = useState(0);
+      const [modelError, setModelError] = useState(null);
+
+      const [isLoadingAudio, setIsLoadingAudio] = useState(false);
+      const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+      const [isFullscreen, setIsFullscreen] = useState(false);
+      const [isPageTurning, setIsPageTurning] = useState(false);
+      const [deviceType, setDeviceType] = useState(null);
+      const [showParentControls, setShowParentControls] = useState(false);
+
+      const [a11y, setA11y] = useState(loadA11ySettings);
+      const [showA11yPanel, setShowA11yPanel] = useState(false);
+
+      // Tap ripple state
+      const [ripples, setRipples] = useState([]);
+      const rippleId = useRef(0);
+
+      const ttsRef = useRef(null);
+      const modelReadyRef = useRef(false);
+      const audioCache = useRef({});
+      const audioRef = useRef(null);
+      const prefetchQueue = useRef(new Set());
+      const currentVoiceRef = useRef(selectedVoice);
+      const currentSpeedRef = useRef(selectedSpeed);
+      const a11yRef = useRef(a11y);
+      const liveRegionRef = useRef(null);
+      const linesRef = useRef(lines);
+      const currentIndexRef = useRef(currentIndex);
+      const isLoadingRef = useRef(false);
+      const isTurningRef = useRef(false);
+      const parentControlsTimer = useRef(null);
+
+      useEffect(() => { currentVoiceRef.current = selectedVoice; }, [selectedVoice]);
+      useEffect(() => { currentSpeedRef.current = selectedSpeed; }, [selectedSpeed]);
+      useEffect(() => { a11yRef.current = a11y; saveA11ySettings(a11y); }, [a11y]);
+      useEffect(() => { linesRef.current = lines; }, [lines]);
+      useEffect(() => { currentIndexRef.current = currentIndex; }, [currentIndex]);
+      useEffect(() => { isLoadingRef.current = isLoadingAudio; }, [isLoadingAudio]);
+      useEffect(() => { isTurningRef.current = isPageTurning; }, [isPageTurning]);
+
+      // Manage body scroll lock based on current view
+      useEffect(() => {
+        if (view === 'reading' || view === 'loading_model') {
+          document.body.classList.add('scroll-lock');
+        } else {
+          document.body.classList.remove('scroll-lock');
+          // Restore scroll position to top when returning to setup
+          window.scrollTo(0, 0);
+        }
+        return () => document.body.classList.remove('scroll-lock');
+      }, [view]);
+
+      const announce = useCallback((text) => {
+        if (liveRegionRef.current) { liveRegionRef.current.textContent = ''; setTimeout(() => { if (liveRegionRef.current) liveRegionRef.current.textContent = text; }, 50); }
+      }, []);
+      const playCue = useCallback((name, ...args) => { const s = a11yRef.current; if (s.soundCues && SoundEngine[name]) SoundEngine[name](s.soundVolume, ...args); }, []);
+      const doHaptic = useCallback((type) => { if (a11yRef.current.hapticFeedback && Haptic[type]) Haptic[type](); }, []);
+      const speakNav = useCallback((text) => {
+        if (!a11yRef.current.spokenNav) return Promise.resolve();
+        return new Promise(resolve => SpokenNav.speak(text, 0.9, () => setTimeout(resolve, 500)));
+      }, []);
+
+      // Add tap ripple at touch/click point
+      const addRipple = useCallback((e) => {
+        if (a11yRef.current.reducedMotion) return;
+        const x = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : window.innerWidth / 2);
+        const y = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : window.innerHeight / 2);
+        const id = ++rippleId.current;
+        setRipples(prev => [...prev, { id, x, y }]);
+        setTimeout(() => setRipples(prev => prev.filter(r => r.id !== id)), 700);
+      }, []);
+
+      // ── Model Init ──
+      const initModel = useCallback(async () => {
+        if (ttsRef.current) { modelReadyRef.current = true; setModelReady(true); return; }
+        setView('loading_model'); setModelError(null); setModelLoadPercent(0);
+        setModelLoadProgress('Detecting best backend...');
+        announce('Loading voice engine. Please wait.');
+        await yieldToBrowser();
+        const hasWebGPU = await detectWebGPU();
+        const device = hasWebGPU ? 'webgpu' : 'wasm';
+        const dtype = hasWebGPU ? 'fp32' : 'q4';
+        // On iOS/Safari, WASM is safer and uses less memory than WebGPU
+        // Force WASM on WebKit to avoid WebGPU-related crashes
+        const finalDevice = isWebKit ? 'wasm' : device;
+        const finalDtype = isWebKit ? 'q4' : dtype;
+        setDeviceType(finalDevice);
+        const dlSize = finalDevice === 'wasm' ? '~50 MB • WASM' : '~200 MB • WebGPU';
+        setModelLoadProgress(`Downloading Kokoro TTS (${dlSize})...`);
+        playCue('startLoadingPulse');
+        const tts = await KokoroTTS.from_pretrained(MODEL_ID, { dtype: finalDtype, device: finalDevice,
+          progress_callback: (p) => {
+            if (p.status === 'progress' && p.total) { const pct = Math.round((p.loaded / p.total) * 100); setModelLoadPercent(pct); setModelLoadProgress(`Downloading: ${pct}%`); }
+            else if (p.status === 'ready') { setModelLoadProgress('Model ready!'); setModelLoadPercent(100); }
+            else if (p.status === 'initiate') { setModelLoadProgress(`Loading ${p.file || 'model'}...`); }
+          }
+        });
+        ttsRef.current = tts; modelReadyRef.current = true; setModelReady(true); setModelLoadProgress('');
+        playCue('loadingDone'); announce('Voice engine ready.');
+      }, [announce, playCue]);
+
+      const generateTTS = useCallback(async (text) => {
+        if (!ttsRef.current) throw new Error('Model not loaded');
+        await yieldToBrowser();
+        try {
+          const audio = await ttsRef.current.generate(text, { voice: currentVoiceRef.current, speed: currentSpeedRef.current });
+          // toBlob() may not exist or may fail on some Safari versions
+          let blob;
+          try { blob = audio.toBlob(); } catch(e) {
+            console.warn('toBlob() failed, trying manual WAV:', e);
+            // Fallback: get raw audio data and create WAV blob manually
+            const raw = audio.audio; // Float32Array
+            const sr = audio.sampling_rate || 24000;
+            const numSamples = raw.length;
+            const wavBuf = new ArrayBuffer(44 + numSamples * 2);
+            const dv = new DataView(wavBuf);
+            const ws = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
+            ws(0,'RIFF'); dv.setUint32(4, 36 + numSamples * 2, true); ws(8,'WAVE');
+            ws(12,'fmt '); dv.setUint32(16,16,true); dv.setUint16(20,1,true);
+            dv.setUint16(22,1,true); dv.setUint32(24,sr,true); dv.setUint32(28,sr*2,true);
+            dv.setUint16(32,2,true); dv.setUint16(34,16,true);
+            ws(36,'data'); dv.setUint32(40, numSamples * 2, true);
+            const pcm = new Int16Array(wavBuf, 44);
+            for (let i = 0; i < numSamples; i++) pcm[i] = Math.max(-32768, Math.min(32767, Math.round(raw[i] * 32767)));
+            blob = new Blob([wavBuf], { type: 'audio/wav' });
+          }
+          return await blobToSafeUrl(blob);
+        } catch(e) {
+          console.error('TTS generation failed:', e);
+          throw e;
+        }
+      }, []);
+
+      const prefetchLine = useCallback(async (index, storyLines) => {
+        if (index >= storyLines.length || audioCache.current[index] || prefetchQueue.current.has(index)) return;
+        // On WebKit/iPad, limit concurrent prefetch to reduce memory pressure
+        if (isWebKit && prefetchQueue.current.size >= 1) return;
+        prefetchQueue.current.add(index);
+        try { const url = await generateTTS(storyLines[index]); if (url) audioCache.current[index] = url; } catch(e) { console.warn('Prefetch failed for line', index, e); } finally { prefetchQueue.current.delete(index); }
+      }, [generateTTS]);
+
+      // ── Start Story ──
+      const startStory = async () => {
+        const parsed = rawText.split('\n').map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()).filter(l => l.length > 0);
+        if (!parsed.length) return;
+        if (!modelReadyRef.current) {
+          try { await initModel(); } catch (err) {
+            setModelError(`Failed: ${err.message}`); playCue('error'); announce('Error loading voice engine.'); setView('setup'); return;
+          }
+        }
+        SoundEngine.init(); setLines(parsed); setCurrentIndex(-1); setView('reading');
+        // Revoke old blob URLs (no-op for data URLs on Safari)
+        Object.values(audioCache.current).forEach(url => { try { if (url.startsWith('blob:')) URL.revokeObjectURL(url); } catch {} });
+        audioCache.current = {};
+        // On WebKit, prefetch only 1 ahead to save memory; on others prefetch 3
+        const prefetchCount = isWebKit ? 1 : 3;
+        for (let i = 0; i < Math.min(prefetchCount, parsed.length); i++) prefetchLine(i, parsed);
+      };
+
+      // ── Load & Play ──
+      const loadAndPlay = async (index, storyLines, navPromise) => {
+        try {
+          const text = storyLines[index];
+          if (!text) return;
+          setIsAudioPlaying(false);
+          if (audioRef.current) { try { audioRef.current.pause(); } catch {} audioRef.current.currentTime = 0; }
+          let audioUrl = audioCache.current[index], genProm = null;
+          if (!audioUrl) {
+            setIsLoadingAudio(true); playCue('startLoadingPulse'); doHaptic('loading');
+            announce('Loading audio, please wait.');
+            genProm = generateTTS(text).then(url => { audioCache.current[index] = url; return url; });
+          }
+          // Wait for spoken nav to finish (with gap) before playing TTS audio
+          if (navPromise) { try { await navPromise; } catch {} }
+          // On iOS, stop SpeechSynthesis completely before playing audio
+          // — they share an audio session and conflict
+          if (isIOS) SpokenNav.stop();
+          if (genProm) {
+            try { audioUrl = await genProm; } catch (e) {
+              console.error('Audio gen failed:', e);
+              setIsLoadingAudio(false); SoundEngine.stopLoadingPulse();
+              playCue('error'); doHaptic('error'); announce('Error generating audio.');
+              return;
+            }
+          }
+          if (audioRef.current && audioUrl) {
+            SoundEngine.stopLoadingPulse(); setIsLoadingAudio(false);
+            audioRef.current.src = audioUrl;
+            try {
+              await audioRef.current.play();
+              setIsAudioPlaying(true);
+            } catch(playErr) {
+              console.warn('play() rejected:', playErr);
+              // Safari autoplay rejection — retry once after a microtask
+              try {
+                await new Promise(r => setTimeout(r, 100));
+                await audioRef.current.play();
+                setIsAudioPlaying(true);
+              } catch(retryErr) {
+                console.warn('play() retry failed:', retryErr);
+                // Don't crash — just skip this page's audio
+                setIsAudioPlaying(false);
+                announce('Audio could not play. Tap to continue.');
+              }
+            }
+          }
+          // Prefetch next lines (fewer on WebKit to save memory)
+          const ahead = isWebKit ? 1 : 3;
+          for (let i = 1; i <= ahead; i++) prefetchLine(index + i, storyLines);
+        } catch(fatalErr) {
+          // Catch-all: never let loadAndPlay crash the app
+          console.error('loadAndPlay fatal:', fatalErr);
+          setIsLoadingAudio(false); SoundEngine.stopLoadingPulse();
+          setIsAudioPlaying(false);
+        }
+      };
+
+      // ── Navigation ──
+      const nextAction = useCallback((e) => {
+        // Unlock audio element on first user gesture (Safari/WebKit)
+        if (!_audioUnlocked && audioRef.current) unlockAudio(audioRef.current);
+        const curLines = linesRef.current;
+        if (isLoadingRef.current || isTurningRef.current) { playCue('boundaryWarning'); return; }
+        playCue('tapConfirm'); doHaptic('tap'); if (e) addRipple(e);
+        const ci = currentIndexRef.current;
+        if (ci === -1) { triggerPageTurn(0, curLines); return; }
+        if (ci >= curLines.length) { resetStory(); return; }
+        triggerPageTurn(ci + 1, curLines);
+      }, [playCue, doHaptic, addRipple]);
+
+      const prevAction = useCallback((e) => {
+        if (e) e.stopPropagation();
+        const curLines = linesRef.current;
+        if (isLoadingRef.current || isTurningRef.current) return;
+        playCue('tapConfirm'); doHaptic('tap');
+        const ci = currentIndexRef.current;
+        if (ci <= 0) { playCue('boundaryWarning'); speakNav("You are at the beginning."); announce("Beginning of story."); return; }
+        const prevIdx = ci - 1;
+        playCue('pageBackward'); doHaptic('pageTurn');
+        const navProm = speakNav(`Page ${prevIdx + 1} of ${curLines.length}.`);
+        announce(`Page ${prevIdx + 1} of ${curLines.length}. ${curLines[prevIdx]}`);
+        setIsPageTurning(true);
+        const delay = a11yRef.current.reducedMotion ? 50 : 400;
+        setTimeout(() => { setCurrentIndex(prevIdx); if (prevIdx >= 0 && prevIdx < curLines.length) loadAndPlay(prevIdx, curLines, navProm); setTimeout(() => setIsPageTurning(false), a11yRef.current.reducedMotion ? 50 : 300); }, delay);
+      }, [playCue, doHaptic, speakNav, announce]);
+
+      const triggerPageTurn = useCallback((targetIdx, storyLines) => {
+        const curLines = storyLines || linesRef.current;
+        setIsPageTurning(true);
+        const delay = a11yRef.current.reducedMotion ? 50 : 400;
+        let navProm = null;
+        if (targetIdx === 0) {
+          playCue('storyStart'); doHaptic('storyStart');
+          navProm = speakNav(`${storyTitle}. Page 1 of ${curLines.length}.`);
+          announce(`Story begins: ${storyTitle}. Page 1 of ${curLines.length}.`);
+        } else if (targetIdx >= curLines.length) {
+          playCue('storyEnd'); doHaptic('storyEnd');
+          navProm = speakNav("The end! Tap to go back to the beginning.");
+          announce("The end of the story! Tap anywhere to return.");
+        } else {
+          playCue('pageForward'); doHaptic('pageTurn');
+          navProm = speakNav(`Page ${targetIdx + 1} of ${curLines.length}.`);
+          announce(`Page ${targetIdx + 1} of ${curLines.length}. ${curLines[targetIdx]}`);
+        }
+        setTimeout(() => { setCurrentIndex(targetIdx); if (targetIdx >= 0 && targetIdx < curLines.length) loadAndPlay(targetIdx, curLines, navProm); setTimeout(() => setIsPageTurning(false), a11yRef.current.reducedMotion ? 50 : 300); }, delay);
+      }, [storyTitle, playCue, doHaptic, speakNav, announce]);
+
+      const handleAudioEnded = useCallback(() => {
+        setIsAudioPlaying(false);
+        if (a11yRef.current.autoAdvance) setTimeout(() => { if (a11yRef.current.autoAdvance) nextAction(); }, 1200);
+      }, [nextAction]);
+
+      const toggleFullscreen = (e) => {
+        e.stopPropagation();
+        const el = document.documentElement;
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!fsEl) {
+          const rfs = el.requestFullscreen || el.webkitRequestFullscreen;
+          if (rfs) rfs.call(el).catch(() => {});
+          setIsFullscreen(true);
+        } else {
+          const efs = document.exitFullscreen || document.webkitExitFullscreen;
+          if (efs) efs.call(document);
+          setIsFullscreen(false);
+        }
+      };
+
+      const resetStory = () => {
+        SpokenNav.stop(); SoundEngine.stopLoadingPulse();
+        setView('setup'); setCurrentIndex(-1); setIsAudioPlaying(false); setIsPageTurning(false); setShowParentControls(false);
+        if (audioRef.current) { try { audioRef.current.pause(); } catch {} audioRef.current.src = ''; }
+        Object.values(audioCache.current).forEach(url => { try { if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url); } catch {} });
+        audioCache.current = {}; announce('Returned to setup screen.');
+      };
+
+      // Parent controls: show briefly on double-tap of top-left, auto-hide
+      const showParentUI = (e) => {
+        e.stopPropagation();
+        setShowParentControls(prev => !prev);
+        if (parentControlsTimer.current) clearTimeout(parentControlsTimer.current);
+        parentControlsTimer.current = setTimeout(() => setShowParentControls(false), 8000);
+      };
+
+      // ── Theme helpers ──
+      const tc = (area) => {
+        const t = a11y.theme;
+        const m = {
+          'setup-bg':       { light: 'bg-gradient-to-b from-slate-50 to-slate-100 text-slate-900', dark: 'bg-gradient-to-b from-slate-900 to-slate-950 text-slate-100', hc: 'bg-black text-white' },
+          'card':           { light: 'bg-white/90 border-white/80 shadow-xl shadow-slate-200/50', dark: 'bg-slate-800/90 border-slate-700/50 shadow-xl shadow-black/20', hc: 'bg-gray-950 border-yellow-400 border-4 shadow-xl shadow-yellow-400/10' },
+          'input':          { light: 'bg-slate-50 border-slate-200 text-slate-700 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100', dark: 'bg-slate-700 border-slate-600 text-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-900', hc: 'bg-black border-yellow-400 border-4 text-yellow-100 focus:ring-4 focus:ring-yellow-400/30' },
+          'reading-text':   { light: 'text-slate-800', dark: 'text-slate-100', hc: 'text-yellow-300' },
+          'reading-bg':     { light: 'bg-gradient-to-b from-amber-50/80 via-white to-slate-50', dark: 'bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950', hc: 'bg-black' },
+          'label':          { light: 'text-indigo-500', dark: 'text-indigo-300', hc: 'text-yellow-400' },
+          'sublabel':       { light: 'text-slate-400', dark: 'text-slate-400', hc: 'text-yellow-200' },
+          'btn-sel':        { light: 'border-indigo-500 bg-indigo-50 ring-2 ring-indigo-500/20', dark: 'border-indigo-400 bg-indigo-900/50 ring-2 ring-indigo-400/20', hc: 'border-yellow-400 bg-yellow-400/10 ring-2 ring-yellow-400/30' },
+          'btn-unsel':      { light: 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/30', dark: 'border-slate-700 bg-slate-800 hover:border-slate-500', hc: 'border-gray-600 hover:border-yellow-600' },
+          'heading':        { light: 'text-slate-800', dark: 'text-white', hc: 'text-yellow-300' },
+        };
+        return m[area] ? (t === 'high-contrast' ? m[area].hc : t === 'dark' ? m[area].dark : m[area].light) : '';
+      };
+      const fontSize = () => a11y.fontSize === 'xlarge' ? 'text-5xl sm:text-6xl md:text-[5.5rem]' : a11y.fontSize === 'large' ? 'text-4xl sm:text-5xl md:text-7xl' : 'text-3xl sm:text-4xl md:text-6xl';
+      const fw = a11y.boldText ? 'font-black' : 'font-bold';
+      const rootCls = `${a11y.reducedMotion ? 'reduce-motion' : ''} ${a11y.theme === 'high-contrast' ? 'high-contrast' : ''}`;
+      const isLastPage = currentIndex >= lines.length;
+      const isCoverPage = currentIndex === -1;
+
+
+      // ═══════════════════════════════════
+      //  LOADING SCREEN
+      // ═══════════════════════════════════
+      if (view === 'loading_model') return (
+        <div className={rootCls}>
+          <div className="fixed inset-0 bg-gradient-to-b from-indigo-950 via-slate-950 to-slate-950 flex flex-col items-center justify-center text-center p-8" role="alert" aria-live="assertive">
+            <div className="space-y-10 max-w-sm">
+              {/* Animated icon */}
+              <div className="relative mx-auto w-28 h-28">
+                <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] shadow-2xl shadow-indigo-500/40 flex items-center justify-center" style={{ animation: 'spinSlow 8s linear infinite' }}>
+                  <Download size={36} className="text-white" style={{ animation: 'spinSlow 8s linear infinite reverse' }} />
+                </div>
+                <div className="absolute -inset-3 rounded-[2.5rem] border-2 border-indigo-400/20 animate-pulse" />
               </div>
-            </div>
-            <h2 className="text-2xl font-extrabold text-white mb-2">Preparing Magic Voice</h2>
-            <p className="text-indigo-300 text-sm mb-6">This only happens once...</p>
-            <div className="w-64 h-2 bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300 rounded-full" style={{ width: `${modelProgress}%` }} />
-            </div>
-            <p className="text-indigo-400 mt-3 font-bold">{modelProgress}%</p>
-          </div>
-        );
-      }
 
-      // =============================================
-      // PARENT SETUP SCREEN
-      // =============================================
-      if (mode === 'setup') {
-        return (
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 p-4 md:p-8">
-            {showSettings && <SettingsModal />}
-
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header */}
-              <header className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-xl shadow-indigo-200">
-                      <BookOpen className="text-white" size={28} />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <Star className="text-white" size={12} fill="white" />
-                    </div>
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StoryTap</h1>
-                    <p className="text-sm text-slate-500 font-medium">Touch stories for little ones</p>
-                  </div>
-                </div>
-
-                {/* Settings Button */}
-                <button
-                  onClick={() => setShowSettings(true)}
-                  className="p-3 bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-slate-100"
-                >
-                  <Settings size={22} className="text-slate-600" />
-                </button>
-              </header>
-
-              {/* Info Banner */}
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                    <Volume2 size={20} />
-                  </div>
-                  <div>
-                    <h3 className="font-bold mb-1">Designed for Blind Children</h3>
-                    <p className="text-sm text-white/80">Your child taps anywhere to hear each sentence. Audio cues and vibrations guide them through the story.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Error Banner */}
-              {loadError && (
-                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
-                      <X size={20} className="text-red-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-red-800 mb-1">Voice Engine Error</h3>
-                      <p className="text-sm text-red-600 mb-2">{loadError}</p>
-                      <p className="text-xs text-red-500">This may happen on some devices. Try refreshing the page or using a different browser (Chrome works best).</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Main Card */}
-              <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-8 border border-slate-100">
-                {/* Title Input */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Story Title</label>
-                  <input
-                    type="text"
-                    value={storyTitle}
-                    onChange={e => setStoryTitle(e.target.value)}
-                    className="w-full p-4 rounded-xl border-2 border-slate-100 text-xl font-bold text-slate-800 focus:border-indigo-300 focus:outline-none transition-colors bg-slate-50/50"
-                    placeholder="Once Upon a Time..."
-                  />
-                </div>
-
-                {/* Story Text */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Story Text</label>
-                  <textarea
-                    value={rawText}
-                    onChange={e => setRawText(e.target.value)}
-                    className="w-full min-h-[180px] p-4 rounded-xl border-2 border-slate-100 text-base leading-relaxed text-slate-700 focus:border-indigo-300 focus:outline-none transition-colors bg-slate-50/50 font-serif"
-                    placeholder="Paste or type your story here..."
-                  />
-                </div>
-
-                {/* Voice Selection */}
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Narrator Voice</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {VOICES.map(v => (
-                      <button
-                        key={v.name}
-                        onClick={() => setVoice(v.name)}
-                        className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-slate-100 hover:border-slate-200'}`}
-                      >
-                        <div className={`absolute inset-0 bg-gradient-to-br ${v.color} opacity-0 group-hover:opacity-5 transition-opacity ${voice === v.name ? 'opacity-10' : ''}`} />
-                        <div className="relative flex items-center gap-3">
-                          <span className="text-2xl">{v.emoji}</span>
-                          <div>
-                            <div className="font-bold text-slate-800">{v.label}</div>
-                            <div className="text-xs text-slate-400">{v.desc}</div>
-                          </div>
-                        </div>
-                        {voice === v.name && (
-                          <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center">
-                            <Check size={12} className="text-white" />
-                          </div>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Speed Selection */}
-                <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Reading Speed</label>
-                  <div className="flex gap-2">
-                    {SPEEDS.map(s => {
-                      const Icon = s.icon;
-                      return (
-                        <button
-                          key={s.value}
-                          onClick={() => setSpeed(s.value)}
-                          className={`flex-1 p-4 rounded-xl border-2 text-center transition-all ${speed === s.value ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}
-                        >
-                          <Icon size={20} className="mx-auto mb-1" />
-                          <div className="font-bold text-sm">{s.label}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Start Button */}
-                <button
-                  onClick={startStory}
-                  disabled={!rawText.trim()}
-                  className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 transition-all duration-500 disabled:opacity-50"
-                >
-                  <Play fill="white" size={24} />
-                  Give to Child
-                </button>
-              </div>
-
-              {modelReady && (
-                <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 rounded-full py-2 px-4 mx-auto w-fit">
-                  <Check size={16} strokeWidth={3} />
-                  <span className="text-sm font-bold">Voice ready</span>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
-
-      // =============================================
-      // READING MODE
-      // =============================================
-      const isCover = currentIndex === -1;
-      const isEnd = currentIndex >= sentences.length;
-      const isReading = !isCover && !isEnd;
-      const progress = sentences.length ? ((currentIndex + 1) / sentences.length) * 100 : 0;
-
-      return (
-        <div
-          onClick={handleTap}
-          className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden"
-        >
-          <audio ref={audioRef} onEnded={handleAudioEnded} hidden />
-
-          {/* Exit Button with 2-Second Hold */}
-          <div className="absolute top-4 left-4 z-50">
-            <button
-              onMouseDown={startHoldExit}
-              onMouseUp={endHoldExit}
-              onMouseLeave={endHoldExit}
-              onTouchStart={startHoldExit}
-              onTouchEnd={endHoldExit}
-              onTouchCancel={endHoldExit}
-              className="relative p-3 bg-white/10 hover:bg-white/20 rounded-full text-white/40 hover:text-white/70 transition-all"
-            >
-              {isHoldingExit && (
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="white" strokeWidth="2" strokeOpacity="0.2" />
-                  <circle
-                    cx="18" cy="18" r="16" fill="none" stroke="white" strokeWidth="2"
-                    strokeDasharray="100" strokeDashoffset={100 - holdProgress}
-                    strokeLinecap="round"
-                    className="transition-all"
-                  />
-                </svg>
-              )}
-              <ArrowLeft size={18} />
-            </button>
-            {isHoldingExit && (
-              <div className="absolute left-12 top-1/2 -translate-y-1/2 bg-black/80 text-white text-xs px-3 py-1.5 rounded-lg whitespace-nowrap">
-                Hold to exit...
-              </div>
-            )}
-          </div>
-
-          {/* ===== COVER PAGE ===== */}
-          {isCover && (
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme === 'cream' ? 'from-amber-100 via-orange-50 to-amber-100' : 'from-indigo-900 via-purple-900 to-slate-900'} flex flex-col items-center justify-center p-8`}>
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl ambient-orb" />
-                <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl ambient-orb-2" />
-              </div>
-
-              <div className="relative mb-10 fade-in-up">
-                <div className="w-32 h-40 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center border border-white/10 glow backdrop-blur-sm">
-                  <BookOpen size={56} className={theme === 'cream' ? 'text-amber-800' : 'text-white/80'} />
-                </div>
-              </div>
-
-              <h1 className={`text-4xl md:text-6xl font-black text-center mb-4 leading-tight fade-in-up ${theme === 'cream' ? 'text-amber-900' : 'text-white'}`}>
-                {storyTitle}
-              </h1>
-              <p className={`text-lg mb-16 fade-in-up ${theme === 'cream' ? 'text-amber-700' : 'text-white/50'}`}>A Story for You</p>
-
-              <div className="flex flex-col items-center fade-in-up">
-                <div className="relative">
-                  <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${theme === 'cream' ? 'bg-amber-300/30' : 'bg-white/10'}`} />
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border backdrop-blur-sm ${theme === 'cream' ? 'bg-amber-200/50 border-amber-300' : 'bg-white/10 border-white/20'}`}>
-                    <Volume2 size={36} className={theme === 'cream' ? 'text-amber-800' : 'text-white'} />
-                  </div>
-                </div>
-                <span className={`font-bold text-lg mt-6 uppercase tracking-widest ${theme === 'cream' ? 'text-amber-700' : 'text-white/70'}`}>Tap Anywhere</span>
-              </div>
-            </div>
-          )}
-
-          {/* ===== READING A SENTENCE ===== */}
-          {isReading && (
-            <div className={`absolute inset-0 bg-gradient-to-b ${currentTheme.bg} flex flex-col items-center justify-center p-6 md:p-16`}>
-              {isGenerating && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-20 backdrop-blur-sm">
-                  <Loader2 className={`w-12 h-12 animate-spin ${currentTheme.text}`} />
-                </div>
-              )}
-
-              <div className={`relative max-w-4xl mx-auto ${isTransitioning ? 'page-turn' : ''}`}>
-                <p className={`${getTextSizeClass()} font-serif font-medium text-center leading-relaxed tracking-wide ${currentTheme.text}`}>
-                  {sentences[currentIndex]}
+              <div className="space-y-2">
+                <h2 className="text-2xl font-black text-white tracking-tight font-ui">Loading Voice Engine</h2>
+                <p className="text-indigo-300/80 text-sm leading-relaxed">
+                  One-time download · Cached for future visits
                 </p>
               </div>
 
-              <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6">
-                {isPlaying ? (
-                  <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
-                    <div className="flex gap-1">
-                      {[...Array(4)].map((_, i) => (
-                        <div key={i} className={`w-1 rounded-full animate-pulse ${theme === 'default' ? 'bg-indigo-400' : theme === 'high-contrast-yb' ? 'bg-yellow-400' : theme === 'cream' ? 'bg-amber-600' : 'bg-white'}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />
+              <div className="space-y-3">
+                <div className="h-2 bg-indigo-900/50 rounded-full overflow-hidden" role="progressbar" aria-valuenow={modelLoadPercent} aria-valuemin="0" aria-valuemax="100">
+                  <div className={`h-full rounded-full transition-all duration-500 ${modelLoadPercent >= 100 ? 'bg-emerald-400' : 'shimmer-bar'}`} style={{ width: `${Math.max(modelLoadPercent, 3)}%` }} />
+                </div>
+                <p className="text-indigo-400/80 text-xs font-bold tracking-widest uppercase">{modelLoadProgress}</p>
+              </div>
+
+              {modelError && (
+                <div className="bg-red-500/10 border border-red-400/20 rounded-xl p-4" role="alert">
+                  <p className="text-red-300 text-sm">{modelError}</p>
+                  <button onClick={() => { setModelError(null); setView('setup'); }} className="mt-2 text-white/70 underline text-sm hover:text-white">Go Back</button>
+                </div>
+              )}
+            </div>
+          </div>
+          <div ref={liveRegionRef} aria-live="assertive" aria-atomic="true" className="sr-only" />
+        </div>
+      );
+
+
+      // ═══════════════════════════════════
+      //  SETUP SCREEN (Parent loads story)
+      // ═══════════════════════════════════
+      if (view === 'setup') return (
+        <div className={rootCls}>
+          <div className={`min-h-screen font-ui overflow-x-hidden ${tc('setup-bg')}`} style={{ minHeight: '100dvh' }}>
+            <div className="max-w-2xl mx-auto p-5 md:p-10 space-y-6 animate-in fade-in slide-up">
+
+              {/* Header */}
+              <header className="flex items-center justify-between pt-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-200/50">
+                    <BookOpen size={22} />
+                  </div>
+                  <div>
+                    <h1 className={`text-2xl font-black tracking-tight ${tc('heading')}`}>StoryTap</h1>
+                    <p className={`text-[11px] font-semibold tracking-wide ${a11y.theme === 'high-contrast' ? 'text-yellow-400' : 'text-indigo-400'}`}>
+                      Tap-through story reader for blind children
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {modelReady && (
+                    <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-full border border-emerald-200" role="status">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-[10px] font-bold text-emerald-700">Ready</span>
+                    </div>
+                  )}
+                  <button onClick={() => setShowA11yPanel(true)}
+                    className={`p-2.5 rounded-xl transition-all shadow-md ${
+                      a11y.theme === 'high-contrast' ? 'bg-yellow-400 text-black' : 'bg-gradient-to-br from-purple-600 to-indigo-600 text-white'
+                    }`}
+                    aria-label="Accessibility settings"
+                  >
+                    <Settings size={18} />
+                  </button>
+                </div>
+              </header>
+
+              {/* Main Card */}
+              <div className={`backdrop-blur-xl rounded-3xl border overflow-hidden ${tc('card')}`}>
+                <div className="p-5 md:p-8 space-y-7">
+
+                  {/* Title */}
+                  <div className="space-y-2">
+                    <label className={`text-[11px] font-black uppercase tracking-widest ${tc('label')}`} htmlFor="story-title">Story Title</label>
+                    <input id="story-title" type="text" value={storyTitle} onChange={(e) => setStoryTitle(e.target.value)}
+                      placeholder="Enter a title..."
+                      className={`w-full px-5 py-4 rounded-xl border-2 outline-none transition-all text-xl ${fw} font-story ${tc('input')}`}
+                    />
+                  </div>
+
+                  {/* Voice Selection */}
+                  <div className="space-y-2">
+                    <label className={`text-[11px] font-black uppercase tracking-widest ${tc('label')}`}>Narrator Voice</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="radiogroup" aria-label="Select voice">
+                      {VOICES.map(v => (
+                        <button key={v.name} onClick={() => setSelectedVoice(v.name)}
+                          className={`text-left p-3 rounded-xl border-2 transition-all ${selectedVoice === v.name ? tc('btn-sel') : tc('btn-unsel')}`}
+                          role="radio" aria-checked={selectedVoice === v.name} aria-label={`${v.label}. ${v.desc}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${v.color} flex items-center justify-center text-sm shadow-sm`}>{v.emoji}</div>
+                            <div className="min-w-0">
+                              <div className={`text-sm ${fw} truncate ${tc('heading')}`}>{v.label}</div>
+                              <div className={`text-[10px] ${tc('sublabel')} truncate`}>{v.desc}</div>
+                            </div>
+                          </div>
+                        </button>
                       ))}
                     </div>
-                    <span className="text-sm font-semibold uppercase tracking-wider">Listening</span>
                   </div>
-                ) : !isGenerating && (
-                  <div className={`flex items-center gap-2 opacity-40 animate-pulse ${currentTheme.text}`}>
-                    <span className="text-sm font-semibold uppercase tracking-wider">Tap for next</span>
-                  </div>
-                )}
 
-                <div className="w-full max-w-xs">
-                  <div className={`h-1 rounded-full overflow-hidden ${theme === 'cream' ? 'bg-amber-200' : 'bg-white/10'}`}>
-                    <div className={`h-full transition-all duration-500 rounded-full ${theme === 'default' ? 'bg-indigo-500' : theme === 'high-contrast-yb' ? 'bg-yellow-400' : theme === 'cream' ? 'bg-amber-600' : 'bg-white'}`} style={{ width: `${progress}%` }} />
+                  {/* Speed */}
+                  <div className="space-y-2">
+                    <label className={`text-[11px] font-black uppercase tracking-widest ${tc('label')}`}>Reading Pace</label>
+                    <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label="Select pace">
+                      {SPEEDS.map(s => (
+                        <button key={s.value} onClick={() => setSelectedSpeed(s.value)}
+                          className={`text-center p-3 rounded-xl border-2 transition-all ${
+                            selectedSpeed === s.value ? tc('btn-sel') : tc('btn-unsel')
+                          }`}
+                          role="radio" aria-checked={selectedSpeed === s.value} aria-label={`${s.label}. ${s.desc}`}
+                        >
+                          <div className="text-lg mb-0.5">{s.icon}</div>
+                          <div className={`text-xs ${fw} ${tc('heading')}`}>{s.label}</div>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <p className={`text-center text-xs mt-2 font-medium ${currentTheme.text} opacity-30`}>{currentIndex + 1} of {sentences.length}</p>
+
+                  {/* Story Content */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className={`text-[11px] font-black uppercase tracking-widest ${tc('label')}`} htmlFor="story-content">Story Text</label>
+                      <button onClick={() => setRawText('')} className="text-[10px] font-bold text-slate-400 hover:text-red-500 uppercase flex items-center gap-1 transition-colors">
+                        <RefreshCcw size={10} /> Clear
+                      </button>
+                    </div>
+                    <textarea id="story-content" value={rawText} onChange={(e) => setRawText(e.target.value)}
+                      className={`w-full min-h-[180px] px-5 py-4 rounded-xl border-2 outline-none transition-all leading-relaxed font-story ${tc('input')} ${a11y.fontSize === 'xlarge' ? 'text-lg' : 'text-base'}`}
+                      placeholder="Paste or type your story here. Each line becomes a page..."
+                    />
+                    <p className={`text-[11px] ml-1 ${tc('sublabel')}`}>
+                      Each line = one page. Your child taps anywhere to hear the next page.
+                    </p>
+                  </div>
+
+                  {/* Info Banner */}
+                  <div className={`rounded-xl p-4 flex items-start gap-3 ${
+                    a11y.theme === 'high-contrast' ? 'bg-yellow-400/10 border-2 border-yellow-400' : a11y.theme === 'dark' ? 'bg-indigo-950/50 border border-indigo-800' : 'bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100/50'
+                  }`}>
+                    <Hand size={18} className={`flex-shrink-0 mt-0.5 ${a11y.theme === 'high-contrast' ? 'text-yellow-400' : 'text-indigo-500'}`} />
+                    <div>
+                      <p className={`text-xs ${fw} ${a11y.theme === 'high-contrast' ? 'text-yellow-200' : a11y.theme === 'dark' ? 'text-indigo-200' : 'text-indigo-800'}`}>
+                        How it works for your child
+                      </p>
+                      <p className={`text-[11px] mt-1 leading-relaxed ${a11y.theme === 'high-contrast' ? 'text-yellow-300/70' : a11y.theme === 'dark' ? 'text-indigo-300/60' : 'text-indigo-600/70'}`}>
+                        After you press <strong>Open Book</strong>, the entire screen becomes a single tap zone. Your child taps anywhere to hear each page read aloud. Sound cues confirm every tap, and distinct melodies mark the start and end.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Start Button (sticky at bottom of card) */}
+                <div className="p-5 md:px-8 md:pb-8 pt-0">
+                  <button onClick={startStory} disabled={!rawText.trim()}
+                    className={`w-full font-black py-5 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed ${
+                      a11y.theme === 'high-contrast'
+                        ? 'bg-yellow-400 text-black hover:bg-yellow-300 shadow-yellow-400/20'
+                        : 'bg-gradient-to-r from-indigo-600 via-indigo-600 to-purple-600 hover:from-indigo-500 text-white shadow-indigo-300/30'
+                    }`}
+                    aria-label={`Open book: ${storyTitle}`}
+                  >
+                    <Play fill="currentColor" size={22} />
+                    <span className="text-xl">Open Book</span>
+                  </button>
                 </div>
               </div>
+
+              <p className={`text-center text-[10px] ${tc('sublabel')} pb-4`}>Powered by Kokoro TTS · Runs locally in your browser</p>
             </div>
-          )}
+          </div>
 
-          {/* ===== END SCREEN ===== */}
-          {isEnd && (
-            <div className="absolute inset-0 bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 flex flex-col items-center justify-center p-8">
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                {[...Array(12)].map((_, i) => (
-                  <Sparkles key={i} size={16 + i * 2} className="absolute text-white/40 burst" style={{ top: `${20 + Math.random() * 60}%`, left: `${10 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s` }} />
-                ))}
-              </div>
+          {showA11yPanel && <AccessibilityPanel settings={a11y} onChange={setA11y} onClose={() => setShowA11yPanel(false)} />}
+          <div ref={liveRegionRef} aria-live="assertive" aria-atomic="true" className="sr-only" />
+        </div>
+      );
 
-              <Sparkles size={80} className="text-white animate-bounce mb-8" />
-              <h2 className="text-5xl md:text-7xl font-black text-white text-center mb-4">The End!</h2>
-              <p className="text-white/80 text-xl mb-16">What a great story!</p>
 
-              <div className="flex flex-col items-center">
-                <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4 pulse-ring">
-                  <Heart size={36} className="text-white" fill="white" />
+      // ═══════════════════════════════════════════════════
+      //  READING SCREEN
+      //  This is where the blind child lives.
+      //  THE ENTIRE SCREEN IS ONE TAP TARGET.
+      //  No buttons, no distractions in the tap zone.
+      //  Parent controls are hidden behind a corner tap.
+      // ═══════════════════════════════════════════════════
+      const readingBg = isLastPage ? 'bg-gradient-to-b from-indigo-950 via-indigo-950 to-slate-950'
+        : isCoverPage ? 'bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700'
+        : tc('reading-bg');
+
+      const textColor = (isLastPage || isCoverPage) ? 'text-white' : tc('reading-text');
+
+      return (
+        <div className={rootCls}>
+          {/* Full-screen tap zone */}
+          <div
+            onClick={nextAction}
+            onTouchStart={(e) => { /* prevent any default behavior on touch */ }}
+            className={`reading-zone fixed inset-0 flex flex-col items-center justify-center text-center overflow-hidden cursor-pointer transition-colors duration-1000 ${readingBg}`}
+            role="main"
+            aria-label={
+              isCoverPage ? `Story: ${storyTitle}. Tap anywhere to begin.`
+              : isLastPage ? 'The End. Tap anywhere to go back.'
+              : `Page ${currentIndex + 1} of ${lines.length}. Tap for next page.`
+            }
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === ' ' || e.key === 'Enter' || e.key === 'ArrowRight') { e.preventDefault(); nextAction(e); }
+              if (e.key === 'ArrowLeft' || e.key === 'Backspace') { e.preventDefault(); prevAction(e); }
+              if (e.key === 'Escape') resetStory();
+            }}
+          >
+            <audio ref={audioRef} hidden onEnded={handleAudioEnded} onPlay={() => setIsAudioPlaying(true)} />
+
+            {/* Tap ripples */}
+            {ripples.map(r => <TapRipple key={r.id} x={r.x} y={r.y} color={isCoverPage || isLastPage ? 'rgba(255,255,255,0.25)' : a11y.theme === 'dark' ? 'rgba(129,140,248,0.2)' : 'rgba(99,102,241,0.15)'} />)}
+
+            {/* ── PARENT CONTROLS ── Hidden by default. Tap the tiny corner handle to reveal. */}
+            {/* Corner handle (always visible - tiny, won't distract blind child) */}
+            <button
+              onClick={showParentUI}
+              className="fixed top-3 right-3 z-50 w-10 h-10 rounded-full flex items-center justify-center opacity-20 hover:opacity-60 transition-opacity pointer-events-auto"
+              aria-label="Show parent controls"
+              style={{ background: 'rgba(255,255,255,0.1)' }}
+            >
+              <Settings size={14} className="text-white/60" />
+            </button>
+
+            {/* Parent controls overlay — slides down when activated */}
+            {showParentControls && (
+              <div
+                className="fixed top-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-md p-4 pt-14 animate-in fade-in"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="max-w-md mx-auto flex items-center justify-between gap-3">
+                  {/* Page info */}
+                  <div className="text-white/70 text-xs font-bold tracking-widest uppercase">
+                    {isCoverPage ? 'Cover' : isLastPage ? 'The End' : `Page ${currentIndex + 1}/${lines.length}`}
+                  </div>
+
+                  <div className="flex gap-2">
+                    {!isCoverPage && !isLastPage && (
+                      <button onClick={prevAction} className="p-2.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-all" aria-label="Previous page">
+                        <ChevronLeft size={18} />
+                      </button>
+                    )}
+                    <button onClick={toggleFullscreen} className="p-2.5 rounded-lg bg-white/10 text-white/70 hover:bg-white/20 transition-all" aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                      {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); resetStory(); }} className="p-2.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all" aria-label="Close story">
+                      <X size={18} />
+                    </button>
+                  </div>
                 </div>
-                <span className="text-white/80 font-bold text-lg uppercase tracking-wider">Tap to Start Over</span>
               </div>
+            )}
+
+            {/* ── MAIN CONTENT ── */}
+            <div className={`w-full max-w-5xl flex flex-col items-center justify-center min-h-0 px-8 sm:px-16 md:px-24 transition-all duration-500 ${
+              isPageTurning && !a11y.reducedMotion ? 'page-out' : 'page-in'
+            }`} style={{ animationDuration: isPageTurning ? '300ms' : '500ms' }}>
+
+              {/* ═══ COVER PAGE ═══ */}
+              {isCoverPage ? (
+                <div className="flex flex-col items-center gap-8 max-w-lg">
+                  {/* Book icon with glow */}
+                  <div className="relative">
+                    <div className="w-32 h-40 sm:w-44 sm:h-56 bg-gradient-to-br from-white/20 to-white/5 rounded-r-3xl rounded-l-md border-l-[6px] border-white/40 flex items-center justify-center shadow-2xl shadow-black/20 backdrop-blur-sm transform rotate-2">
+                      <BookOpen size={52} className="text-white/90 drop-shadow-lg sm:w-16 sm:h-16" />
+                    </div>
+                    <div className="absolute -inset-8 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+                  </div>
+
+                  <div className="space-y-3 text-center">
+                    <h2 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-[1.1] drop-shadow-2xl font-story">
+                      {storyTitle}
+                    </h2>
+                    <p className="text-white/40 font-semibold tracking-[0.2em] uppercase text-xs">A Story for You</p>
+                  </div>
+
+                  <div className={`flex items-center gap-3 text-white/60 pt-4 ${a11y.reducedMotion ? '' : 'bob'}`}>
+                    <Heart fill="currentColor" size={16} className="text-white/40" />
+                    <span className="text-sm font-bold tracking-widest uppercase">Tap Anywhere to Begin</span>
+                    <Heart fill="currentColor" size={16} className="text-white/40" />
+                  </div>
+                </div>
+
+              /* ═══ END PAGE ═══ */
+              ) : isLastPage ? (
+                <div className="flex flex-col items-center gap-10 pointer-events-auto">
+                  <div className="relative">
+                    <div className={`w-28 h-28 sm:w-36 sm:h-36 bg-gradient-to-tr from-yellow-300 via-amber-400 to-orange-400 rounded-full flex items-center justify-center shadow-2xl shadow-amber-400/30 ${a11y.reducedMotion ? '' : 'bob'}`}>
+                      <Sparkles size={44} className="text-white sm:w-16 sm:h-16 drop-shadow-md" />
+                    </div>
+                    <div className="absolute -inset-12 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
+                  </div>
+
+                  <div className="text-center space-y-3">
+                    <h2 className="text-5xl sm:text-7xl lg:text-8xl font-black text-white tracking-tighter font-story">The End!</h2>
+                    <p className="text-white/50 text-base font-medium max-w-xs mx-auto">Great job listening to the whole story!</p>
+                  </div>
+
+                  <button
+                    onClick={(e) => { e.stopPropagation(); resetStory(); }}
+                    className={`px-10 py-4 font-black text-lg rounded-2xl shadow-2xl transition-all active:scale-95 ${
+                      a11y.theme === 'high-contrast' ? 'bg-yellow-400 text-black' : 'bg-white text-indigo-950 hover:bg-indigo-50'
+                    }`}
+                  >
+                    Read Another Story
+                  </button>
+                </div>
+
+              /* ═══ STORY PAGES ═══ */
+              ) : (
+                <div className="w-full flex flex-col items-center justify-center">
+                  {/* The text — the hero of the page */}
+                  <div className={`w-full max-w-4xl transition-all duration-700 ${isLoadingAudio ? 'opacity-30 blur-sm scale-[0.98]' : 'opacity-100 blur-none scale-100'}`}>
+                    <p className={`${fontSize()} font-story ${fw} leading-[1.35] tracking-tight ${textColor}`}
+                       style={{ textWrap: 'balance' }}
+                       aria-live="polite"
+                    >
+                      {lines[currentIndex]}
+                    </p>
+                  </div>
+
+                  {/* Bottom status area — visual only, not a tap target */}
+                  <div className="fixed bottom-0 left-0 right-0 pointer-events-none pb-8 sm:pb-12 flex flex-col items-center gap-4">
+                    {isLoadingAudio ? (
+                      <div className="flex flex-col items-center gap-3" role="status" aria-label="Loading audio">
+                        <div className="flex gap-1">
+                          {[0,1,2].map(i => (
+                            <div key={i} className={`w-2 h-2 rounded-full ${a11y.theme === 'high-contrast' ? 'bg-yellow-400' : 'bg-indigo-400'} soft-pulse`} style={{ animationDelay: `${i * 0.2}s` }} />
+                          ))}
+                        </div>
+                        <span className={`text-[10px] font-bold tracking-[0.2em] uppercase ${a11y.theme === 'high-contrast' ? 'text-yellow-400/60' : a11y.theme === 'dark' ? 'text-indigo-400/60' : 'text-indigo-400/50'}`}>
+                          Preparing voice...
+                        </span>
+                      </div>
+                    ) : isAudioPlaying ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <AudioVisualizer playing={true} theme={a11y.theme} />
+                      </div>
+                    ) : (
+                      <div className={`flex flex-col items-center gap-2 ${a11y.reducedMotion ? '' : 'bob'}`}>
+                        <div className={`w-10 h-10 rounded-full border-[3px] flex items-center justify-center ${
+                          a11y.theme === 'high-contrast' ? 'border-yellow-400/40 bg-yellow-400/5' : a11y.theme === 'dark' ? 'border-slate-600 bg-slate-800/50' : 'border-slate-300/50 bg-white/50'
+                        }`}>
+                          <ChevronRight size={22} className={`translate-x-0.5 ${a11y.theme === 'high-contrast' ? 'text-yellow-400/50' : a11y.theme === 'dark' ? 'text-slate-500' : 'text-slate-300'}`} />
+                        </div>
+                        <span className={`text-[9px] font-bold tracking-[0.3em] uppercase ${a11y.theme === 'high-contrast' ? 'text-yellow-400/30' : a11y.theme === 'dark' ? 'text-slate-600' : 'text-slate-300/70'}`}>
+                          Tap anywhere
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Progress indicator */}
+                    <div className="mt-1">
+                      <ProgressDots total={lines.length} current={currentIndex} theme={a11y.theme} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+          </div>
+
+          <div ref={liveRegionRef} aria-live="assertive" aria-atomic="true" className="sr-only" />
         </div>
       );
     };
@@ -1057,5 +1288,4 @@
     createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
-
 </html>
