@@ -183,10 +183,102 @@
     ];
 
     const THEMES = [
-      { id: 'default', label: 'Default', desc: 'Dark ambient', bg: 'from-slate-950 via-slate-900 to-slate-950', text: 'text-white', accent: 'indigo' },
-      { id: 'high-contrast-wb', label: 'High Contrast', desc: 'White on Black', bg: 'from-black to-black', text: 'text-white', accent: 'white' },
-      { id: 'high-contrast-yb', label: 'Yellow/Black', desc: 'Yellow on Black', bg: 'from-black to-black', text: 'text-yellow-400', accent: 'yellow' },
-      { id: 'cream', label: 'Soft Cream', desc: 'Gentle on eyes', bg: 'from-amber-50 via-orange-50 to-amber-50', text: 'text-amber-950', accent: 'amber' },
+      {
+        id: 'default',
+        label: 'Default',
+        desc: 'Dark ambient',
+        bg: 'from-slate-950 via-slate-900 to-slate-950',
+        text: 'text-white',
+        accent: 'indigo',
+        progress: 'bg-indigo-500',
+        coverBg: 'from-indigo-900 via-purple-900 to-slate-900',
+        coverText: 'text-white',
+        coverSub: 'text-white/50',
+        pulse: 'bg-white/10',
+        coverBorder: 'border-white/10',
+        coverElementBg: 'bg-white/10',
+
+        // Setup Screen
+        pageBg: 'bg-slate-50',
+        cardBg: 'bg-white',
+        textMain: 'text-slate-900',
+        textSub: 'text-slate-500',
+        border: 'border-slate-100',
+        inputBg: 'bg-slate-50',
+        highlight: 'indigo'
+      },
+      {
+        id: 'high-contrast-wb',
+        label: 'High Contrast',
+        desc: 'White on Black',
+        bg: 'from-black to-black',
+        text: 'text-white',
+        accent: 'white',
+        progress: 'bg-white',
+        coverBg: 'from-black to-black',
+        coverText: 'text-white',
+        coverSub: 'text-white',
+        pulse: 'bg-white/20',
+        coverBorder: 'border-white',
+        coverElementBg: 'bg-transparent',
+
+        // Setup Screen
+        pageBg: 'bg-black',
+        cardBg: 'bg-zinc-900',
+        textMain: 'text-white',
+        textSub: 'text-slate-300',
+        border: 'border-white',
+        inputBg: 'bg-black',
+        highlight: 'white'
+      },
+      {
+        id: 'high-contrast-yb',
+        label: 'Yellow/Black',
+        desc: 'Yellow on Black',
+        bg: 'from-black to-black',
+        text: 'text-yellow-400',
+        accent: 'yellow',
+        progress: 'bg-yellow-400',
+        coverBg: 'from-black via-zinc-900 to-black',
+        coverText: 'text-yellow-400',
+        coverSub: 'text-yellow-400/80',
+        pulse: 'bg-yellow-400/20',
+        coverBorder: 'border-yellow-400',
+        coverElementBg: 'bg-transparent',
+
+        // Setup Screen
+        pageBg: 'bg-black',
+        cardBg: 'bg-zinc-900',
+        textMain: 'text-yellow-400',
+        textSub: 'text-yellow-200',
+        border: 'border-yellow-400',
+        inputBg: 'bg-black',
+        highlight: 'yellow'
+      },
+      {
+        id: 'cream',
+        label: 'Soft Cream',
+        desc: 'Gentle on eyes',
+        bg: 'from-amber-50 via-orange-50 to-amber-50',
+        text: 'text-amber-950',
+        accent: 'amber',
+        progress: 'bg-amber-600',
+        coverBg: 'from-amber-100 via-orange-50 to-amber-100',
+        coverText: 'text-amber-900',
+        coverSub: 'text-amber-700',
+        pulse: 'bg-amber-900/10',
+        coverBorder: 'border-amber-300',
+        coverElementBg: 'bg-amber-200/50',
+
+        // Setup Screen
+        pageBg: 'bg-amber-50',
+        cardBg: 'bg-amber-50/50',
+        textMain: 'text-amber-900',
+        textSub: 'text-amber-700',
+        border: 'border-amber-200',
+        inputBg: 'bg-white/50',
+        highlight: 'amber'
+      },
     ];
 
     // Optimized yield - use requestIdleCallback when available for non-urgent work
@@ -209,6 +301,72 @@
       const cores = navigator.hardwareConcurrency || 4;
 
       return { isMobile, isSafari, isIOS, hasWebGPU, memory, cores };
+    };
+
+    // =============================================
+    // INDEXEDDB AUDIO CACHE (Persistent across sessions)
+    // =============================================
+    const DB_NAME = 'StoryTapAudioCache';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'audio';
+
+    const openDB = () => new Promise((resolve, reject) => {
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME);
+        }
+      };
+    });
+
+    const getCachedAudio = async (key) => {
+      try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readonly');
+          const store = tx.objectStore(STORE_NAME);
+          const request = store.get(key);
+          request.onsuccess = () => resolve(request.result || null);
+          request.onerror = () => resolve(null);
+        });
+      } catch (e) { return null; }
+    };
+
+    const setCachedAudio = async (key, blob) => {
+      try {
+        const db = await openDB();
+        return new Promise((resolve) => {
+          const tx = db.transaction(STORE_NAME, 'readwrite');
+          const store = tx.objectStore(STORE_NAME);
+          store.put(blob, key);
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => resolve(false);
+        });
+      } catch (e) { return false; }
+    };
+
+    // Create a hash key for caching (text + voice + speed + version)
+    // Version 2: Fixed chunking bug - invalidates old partial audio
+    const CACHE_VERSION = 2;
+    const getCacheKey = (text, voice, speed) => {
+      const str = `v${CACHE_VERSION}|${text}|${voice}|${speed}`;
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash = hash & hash;
+      }
+      return `audio_${hash}`;
+    };
+
+    // =============================================
+    // TEXT OPTIMIZATION FOR FASTER TTS
+    // =============================================
+    // Clean text for TTS processing
+    const cleanTextForTTS = (text) => {
+      return text.trim().replace(/\s+/g, ' ');
     };
 
     // =============================================
@@ -441,13 +599,33 @@
         }
       }, []);
 
-      // Generate audio with Kokoro
+      // Generate audio with Kokoro + persistent cache
       const generateKokoroAudio = useCallback(async (text) => {
         if (!ttsRef.current) return null;
+
+        // Check persistent cache first
+        const cacheKey = getCacheKey(text, voice, speed);
         try {
-          await yieldIdle(50);
-          const audio = await ttsRef.current.generate(text, { voice, speed });
-          return URL.createObjectURL(audio.toBlob());
+          const cachedBlob = await getCachedAudio(cacheKey);
+          if (cachedBlob) {
+            console.log('Using cached audio for:', text.substring(0, 30) + '...');
+            return URL.createObjectURL(cachedBlob);
+          }
+        } catch (e) { /* Cache miss, generate fresh */ }
+
+        try {
+          // Clean the text and generate audio for the full sentence
+          const cleanText = cleanTextForTTS(text);
+          await yieldIdle(10);
+
+          const audio = await ttsRef.current.generate(cleanText, { voice, speed });
+          const resultBlob = audio.toBlob();
+
+          // Save to persistent cache (don't await, do in background)
+          setCachedAudio(cacheKey, resultBlob).catch(() => { });
+
+          return URL.createObjectURL(resultBlob);
+
         } catch (error) {
           console.error('Kokoro generation error:', error);
           return null;
@@ -489,20 +667,36 @@
       const prefetch = useCallback(async (startIdx, list) => {
         if (engineMode !== 'kokoro' || !ttsRef.current) return;
 
-        // Prefetch next 2 sentences in background
-        for (let i = startIdx; i < Math.min(startIdx + 2, list.length); i++) {
+        // Priority 1: Prefetch next 6 sentences from current position
+        for (let i = startIdx; i < Math.min(startIdx + 6, list.length); i++) {
           if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
 
           prefetchRef.current.add(i);
-
-          // Use idle callback for background prefetching
-          await yieldIdle(200);
+          await yieldIdle(10); // Minimal yield
 
           try {
             const url = await generateKokoroAudio(list[i]);
             if (url) cacheRef.current[i] = url;
           } catch (e) {
             console.warn('Prefetch error:', e);
+          }
+
+          prefetchRef.current.delete(i);
+        }
+
+        // Priority 2: Fill any remaining gaps in the story
+        // This runs after the immediate prefetch is done
+        for (let i = 0; i < list.length; i++) {
+          if (cacheRef.current[i] || prefetchRef.current.has(i)) continue;
+
+          prefetchRef.current.add(i);
+          await yieldIdle(50); // Slightly longer yield for gap-filling
+
+          try {
+            const url = await generateKokoroAudio(list[i]);
+            if (url) cacheRef.current[i] = url;
+          } catch (e) {
+            console.warn('Gap-fill error:', e);
           }
 
           prefetchRef.current.delete(i);
@@ -537,7 +731,11 @@
               audioRef.current.src = url;
               await audioRef.current.play();
               setIsPlaying(true);
+
+              // IMMEDIATELY start prefetching next sentences while this one plays
+              // This runs in background - generates while audio is playing
               prefetch(idx + 1, list);
+
               return;
             } catch (e) {
               console.warn('Kokoro playback failed, trying fallback:', e);
@@ -560,13 +758,19 @@
         playCue('ready');
       }, [engineMode, generateKokoroAudio, speakWithFallback, prefetch, playCue]);
 
-      // Audio ended handler
+      // Audio ended handler - also continue prefetching
       const handleAudioEnded = useCallback(() => {
         setIsPlaying(false);
         if (currentIndex >= 0 && currentIndex < sentences.length) {
           playCue('ready');
+
+          // Continue prefetching while waiting for next tap
+          // This fills the buffer during the "ready for next" state
+          if (engineMode === 'kokoro' && ttsRef.current) {
+            prefetch(currentIndex + 1, sentences);
+          }
         }
-      }, [currentIndex, sentences.length, playCue]);
+      }, [currentIndex, sentences, engineMode, playCue, prefetch]);
 
       // Exit button hold logic
       const startHoldExit = (e) => {
@@ -655,22 +859,52 @@
 
         setSentences(allSentences);
         setCurrentIndex(-1);
+        setMode('loading');
 
         // Load model if needed
         if (!ttsRef.current) {
-          setMode('loading');
           const success = await loadKokoroModel();
           if (!success) {
-            // Fall back to Web Speech
+            // Fall back to Web Speech - no warm-up needed
             setEngineMode('fallback');
             setModelReady(true);
+            setMode('reading');
+            return;
           }
+        }
+
+        // =============================================
+        // WARM-UP PHASE: Pre-generate first sentences
+        // This gives slower devices a ~10 second head start
+        // =============================================
+        if (ttsRef.current) {
+          const WARMUP_COUNT = Math.min(5, allSentences.length); // Pre-generate up to 5 sentences
+          setModelStatus('Warming up voice...');
+
+          for (let i = 0; i < WARMUP_COUNT; i++) {
+            setModelProgress(Math.round(((i + 1) / WARMUP_COUNT) * 100));
+            setModelStatus(`Preparing sentence ${i + 1} of ${WARMUP_COUNT}...`);
+
+            try {
+              const url = await generateKokoroAudio(allSentences[i]);
+              if (url) cacheRef.current[i] = url;
+            } catch (e) {
+              console.warn('Warm-up generation error:', e);
+            }
+
+            await yieldToBrowser(); // Allow UI to update
+          }
+
+          setModelStatus('Ready to read!');
+          await new Promise(r => setTimeout(r, 500)); // Brief pause to show "Ready"
         }
 
         setMode('reading');
 
-        // Start prefetching first sentences
-        setTimeout(() => prefetch(0, allSentences), 100);
+        // Continue prefetching remaining sentences in background
+        if (ttsRef.current && engineMode === 'kokoro') {
+          setTimeout(() => prefetch(5, allSentences), 100);
+        }
       };
 
       // Exit story
@@ -690,11 +924,11 @@
       // =============================================
       const SettingsModal = () => (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowSettings(false)}>
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">Accessibility Settings</h2>
-              <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                <X size={20} className="text-slate-500" />
+          <div className={`${currentTheme.cardBg} rounded-3xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto ${currentTheme.border} border`} onClick={e => e.stopPropagation()}>
+            <div className={`p-6 border-b ${currentTheme.border} flex items-center justify-between`}>
+              <h2 className={`text-xl font-bold ${currentTheme.textMain}`}>Accessibility Settings</h2>
+              <button onClick={() => setShowSettings(false)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `hover:bg-white/10 ${currentTheme.textMain}` : 'hover:bg-slate-100 text-slate-500'}`}>
+                <X size={20} />
               </button>
             </div>
 
@@ -702,52 +936,70 @@
               {/* Sound Cues */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-                    {soundCuesEnabled ? <Volume2 size={20} className="text-indigo-600" /> : <VolumeX size={20} className="text-slate-400" />}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-indigo-100'}`}>
+                    {soundCuesEnabled ? <Volume2 size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-indigo-600'} /> : <VolumeX size={20} className={currentTheme.textSub} />}
                   </div>
                   <div>
-                    <div className="font-bold text-slate-800">Sound Cues</div>
-                    <div className="text-sm text-slate-500">Audio feedback on taps</div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Sound Cues</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Audio feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? 'bg-indigo-500' : 'bg-slate-200'}`}>
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-1'}`} />
+                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !soundCuesEnabled ? 'bg-zinc-700' : ''}`}>
+                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
 
               {/* Vibration */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                    <Vibrate size={20} className="text-purple-600" />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-purple-100'}`}>
+                    <Vibrate size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-purple-600'} />
                   </div>
                   <div>
-                    <div className="font-bold text-slate-800">Vibration</div>
-                    <div className="text-sm text-slate-500">Haptic feedback on taps</div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Vibration</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Haptic feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? 'bg-purple-500' : 'bg-slate-200'}`}>
-                  <div className={`absolute top-1 w-6 h-6 bg-white rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-1'}`} />
+                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? `bg-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !vibrationEnabled ? 'bg-zinc-700' : ''}`}>
+                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
 
               {/* Visual Theme */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                    <Palette size={20} className="text-amber-600" />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-amber-100'}`}>
+                    <Palette size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-amber-600'} />
                   </div>
                   <div>
-                    <div className="font-bold text-slate-800">Visual Theme</div>
-                    <div className="text-sm text-slate-500">Reading appearance</div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Visual Theme</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Reading appearance</div>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 mt-3">
+                <div className="grid grid-cols-2 gap-3 mt-3">
                   {THEMES.map(t => (
-                    <button key={t.id} onClick={() => setTheme(t.id)} className={`p-3 rounded-xl border-2 text-left transition-all ${theme === t.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}>
-                      <div className={`w-full h-6 rounded-lg bg-gradient-to-r ${t.bg} mb-2 border border-slate-200`} />
-                      <div className="font-bold text-sm text-slate-800">{t.label}</div>
-                      <div className="text-xs text-slate-500">{t.desc}</div>
+                    <button key={t.id} onClick={() => setTheme(t.id)} className={`relative overflow-hidden p-1 rounded-xl border-2 transition-all group ${theme === t.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-100 hover:border-indigo-200'}`}>
+                      <div className={`w-full aspect-[16/10] rounded-lg bg-gradient-to-br ${t.bg} flex flex-col items-center justify-center relative overflow-hidden`}>
+                        {/* Mini text preview */}
+                        <div className={`text-xs font-serif font-medium ${t.text} opacity-90 mb-1`}>Fairy Tale</div>
+                        <div className={`w-12 h-0.5 rounded-full ${t.text} opacity-20`} />
+
+                        {/* Mini progress bar */}
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/10">
+                          <div className={`h-full w-2/3 ${t.progress}`} />
+                        </div>
+                      </div>
+
+                      <div className="p-2 text-center bg-white">
+                        <div className="font-bold text-xs text-slate-800">{t.label}</div>
+                      </div>
+
+                      {/* Selection check */}
+                      {theme === t.id && (
+                        <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center shadow-sm z-10">
+                          <Check size={12} className="text-white" strokeWidth={3} />
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -756,27 +1008,27 @@
               {/* Text Size */}
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                    <Eye size={20} className="text-emerald-600" />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-emerald-100'}`}>
+                    <Eye size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-emerald-600'} />
                   </div>
                   <div>
-                    <div className="font-bold text-slate-800">Text Size</div>
-                    <div className="text-sm text-slate-500">Story text size</div>
+                    <div className={`font-bold ${currentTheme.textMain}`}>Text Size</div>
+                    <div className={`text-sm ${currentTheme.textSub}`}>Story text size</div>
                   </div>
                 </div>
                 <div className="flex gap-2 mt-3">
                   {[{ id: 'normal', label: 'Normal' }, { id: 'large', label: 'Large' }, { id: 'huge', label: 'Huge' }].map(s => (
-                    <button key={s.id} onClick={() => setTextSize(s.id)} className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${textSize === s.id ? 'border-indigo-500 bg-indigo-50' : 'border-slate-100 hover:bg-slate-50'}`}>
-                      <div className={`font-bold mb-1 ${s.id === 'huge' ? 'text-2xl' : s.id === 'large' ? 'text-xl' : 'text-base'}`}>Aa</div>
-                      <div className="text-xs text-slate-500">{s.label}</div>
+                    <button key={s.id} onClick={() => setTextSize(s.id)} className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${textSize === s.id ? `border-${currentTheme.highlight}-500 ${theme.includes('high-contrast') ? `bg-${currentTheme.highlight}-900/30` : `bg-${currentTheme.highlight}-50`}` : `${currentTheme.border} ${theme.includes('high-contrast') ? '' : 'hover:bg-slate-50'}`} ${currentTheme.cardBg}`}>
+                      <div className={`font-bold mb-1 ${s.id === 'huge' ? 'text-2xl' : s.id === 'large' ? 'text-xl' : 'text-base'} ${currentTheme.textMain}`}>Aa</div>
+                      <div className={`text-xs ${currentTheme.textSub}`}>{s.label}</div>
                     </button>
                   ))}
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100">
-              <button onClick={() => setShowSettings(false)} className="w-full py-3 bg-indigo-500 text-white font-bold rounded-xl hover:bg-indigo-600 transition-colors">Done</button>
+            <div className={`p-6 border-t ${currentTheme.border}`}>
+              <button onClick={() => setShowSettings(false)} className={`w-full py-3 font-bold rounded-xl transition-colors ${theme.includes('high-contrast') ? `bg-white text-black hover:bg-slate-200` : `bg-${currentTheme.highlight}-500 text-white hover:bg-${currentTheme.highlight}-600`}`}>Done</button>
             </div>
           </div>
         </div>
@@ -814,88 +1066,95 @@
       // =============================================
       // PARENT SETUP SCREEN
       // =============================================
+      // =============================================
+      // PARENT SETUP SCREEN
+      // =============================================
       if (mode === 'setup') {
+        const isHighContrast = theme.includes('high-contrast');
+
         return (
-          <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/30 p-4 md:p-8">
+          <div className={`min-h-screen ${currentTheme.pageBg} p-4 md:p-8 transition-colors duration-300`}>
             {showSettings && <SettingsModal />}
 
             <div className="max-w-2xl mx-auto space-y-6">
               <header className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-xl shadow-indigo-200">
-                      <BookOpen className="text-white" size={28} />
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-xl ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-indigo-200'}`}>
+                      <BookOpen size={28} className={isHighContrast ? 'text-current' : 'text-white'} />
                     </div>
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                      <Star className="text-white" size={12} fill="white" />
-                    </div>
+                    {!isHighContrast && (
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                        <Star className="text-white" size={12} fill="white" />
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <h1 className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">StoryTap</h1>
-                    <p className="text-sm text-slate-500 font-medium">Touch stories for little ones</p>
+                    <h1 className={`text-2xl font-black ${isHighContrast ? currentTheme.textMain : 'bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent'} transition-colors`}>StoryTap</h1>
+                    <p className={`text-sm font-medium ${currentTheme.textSub} transition-colors`}>Touch stories for little ones</p>
                   </div>
                 </div>
-                <button onClick={() => setShowSettings(true)} className="p-3 bg-white rounded-xl shadow-md hover:shadow-lg transition-all border border-slate-100">
-                  <Settings size={22} className="text-slate-600" />
+                <button onClick={() => setShowSettings(true)} className={`p-3 rounded-xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`}>
+                  <Settings size={22} />
                 </button>
               </header>
 
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl p-4 text-white shadow-lg shadow-indigo-200">
+              <div className={`rounded-2xl p-4 shadow-lg ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-indigo-200'}`}>
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                    <Volume2 size={20} />
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? `border ${currentTheme.border}` : 'bg-white/20'}`}>
+                    <Volume2 size={20} className={isHighContrast ? currentTheme.textMain : 'text-white'} />
                   </div>
                   <div>
                     <h3 className="font-bold mb-1">Designed for Blind Children</h3>
-                    <p className="text-sm text-white/80">Your child taps anywhere to hear each sentence with audio cues and vibrations.</p>
+                    <p className={`text-sm ${isHighContrast ? currentTheme.textSub : 'text-white/80'}`}>Your child taps anywhere to hear each sentence with audio cues and vibrations.</p>
                   </div>
                 </div>
               </div>
 
               {modelReady && (
-                <div className="flex items-center justify-center gap-2 text-emerald-600 bg-emerald-50 rounded-full py-2 px-4 mx-auto w-fit">
+                <div className={`flex items-center justify-center gap-2 rounded-full py-2 px-4 mx-auto w-fit ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-emerald-50 text-emerald-600'}`}>
                   <Check size={16} strokeWidth={3} />
                   <span className="text-sm font-bold">{engineMode === 'kokoro' ? 'Premium voice ready' : 'Voice ready'}</span>
                 </div>
               )}
 
-              <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 p-6 md:p-8 space-y-8 border border-slate-100">
+              <div className={`${currentTheme.cardBg} rounded-[2rem] shadow-xl p-6 md:p-8 space-y-8 border ${currentTheme.border} transition-colors`}>
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Story Title</label>
-                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 text-xl font-bold text-slate-800 focus:border-indigo-300 focus:outline-none transition-colors bg-slate-50/50" placeholder="Once Upon a Time..." />
+                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Title</label>
+                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Once Upon a Time..." />
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Story Text</label>
-                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className="w-full min-h-[180px] p-4 rounded-xl border-2 border-slate-100 text-base leading-relaxed text-slate-700 focus:border-indigo-300 focus:outline-none transition-colors bg-slate-50/50 font-serif" placeholder="Paste or type your story here..." />
+                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
+                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} focus:border-${currentTheme.highlight}-500`} placeholder="Paste or type your story here..." />
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Narrator Voice</label>
+                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Narrator Voice</label>
                   <div className="grid grid-cols-2 gap-3">
                     {VOICES.map(v => (
-                      <button key={v.name} onClick={() => setVoice(v.name)} className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? 'border-indigo-500 shadow-lg shadow-indigo-100' : 'border-slate-100 hover:border-slate-200'}`}>
-                        <div className={`absolute inset-0 bg-gradient-to-br ${v.color} opacity-0 group-hover:opacity-5 transition-opacity ${voice === v.name ? 'opacity-10' : ''}`} />
+                      <button key={v.name} onClick={() => setVoice(v.name)} className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? `border-${currentTheme.highlight}-500 shadow-lg` : `${currentTheme.border} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg} ${currentTheme.textMain}`}>
+                        {!isHighContrast && <div className={`absolute inset-0 bg-gradient-to-br ${v.color} opacity-0 group-hover:opacity-5 transition-opacity ${voice === v.name ? 'opacity-10' : ''}`} />}
                         <div className="relative flex items-center gap-3">
                           <span className="text-2xl">{v.emoji}</span>
                           <div>
-                            <div className="font-bold text-slate-800">{v.label}</div>
-                            <div className="text-xs text-slate-400">{v.desc}</div>
+                            <div className="font-bold">{v.label}</div>
+                            <div className={`text-xs ${currentTheme.textSub}`}>{v.desc}</div>
                           </div>
                         </div>
-                        {voice === v.name && <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-500 rounded-full flex items-center justify-center"><Check size={12} className="text-white" /></div>}
+                        {voice === v.name && <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${isHighContrast ? 'bg-white text-black' : 'bg-indigo-500 text-white'}`}><Check size={12} /></div>}
                       </button>
                     ))}
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Reading Speed</label>
+                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Reading Speed</label>
                   <div className="flex gap-2">
                     {SPEEDS.map(s => {
                       const Icon = s.icon;
                       return (
-                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-xl border-2 text-center transition-all ${speed === s.value ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-slate-100 text-slate-500 hover:border-slate-200'}`}>
+                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-xl border-2 text-center transition-all ${speed === s.value ? `border-${currentTheme.highlight}-500 ${isHighContrast ? currentTheme.textMain : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
                           <Icon size={20} className="mx-auto mb-1" />
                           <div className="font-bold text-sm">{s.label}</div>
                         </button>
@@ -904,8 +1163,8 @@
                   </div>
                 </div>
 
-                <button onClick={startStory} disabled={!rawText.trim()} className="w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl shadow-indigo-200 transition-all duration-500 disabled:opacity-50">
-                  <Play fill="white" size={24} />
+                <button onClick={startStory} disabled={!rawText.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 bg-[length:200%_100%] hover:bg-right text-white shadow-indigo-200'}`}>
+                  <Play fill={isHighContrast ? "currentColor" : "white"} size={24} />
                   Give to Child
                 </button>
               </div>
@@ -940,26 +1199,28 @@
           </div>
 
           {isCover && (
-            <div className={`absolute inset-0 bg-gradient-to-br ${theme === 'cream' ? 'from-amber-100 via-orange-50 to-amber-100' : 'from-indigo-900 via-purple-900 to-slate-900'} flex flex-col items-center justify-center p-8`}>
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl ambient-orb" />
-                <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl ambient-orb-2" />
-              </div>
+            <div className={`absolute inset-0 bg-gradient-to-br ${currentTheme.coverBg} flex flex-col items-center justify-center p-8`}>
+              {!theme.includes('high-contrast') && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-500/30 rounded-full blur-3xl ambient-orb" />
+                  <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/30 rounded-full blur-3xl ambient-orb-2" />
+                </div>
+              )}
               <div className="relative mb-10 fade-in-up">
-                <div className="w-32 h-40 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center border border-white/10 glow backdrop-blur-sm">
-                  <BookOpen size={56} className={theme === 'cream' ? 'text-amber-800' : 'text-white/80'} />
+                <div className={`w-32 h-40 bg-gradient-to-br from-white/10 to-white/5 rounded-2xl flex items-center justify-center border glow backdrop-blur-sm ${currentTheme.coverBorder}`}>
+                  <BookOpen size={56} className={currentTheme.coverText} />
                 </div>
               </div>
-              <h1 className={`text-4xl md:text-6xl font-black text-center mb-4 leading-tight fade-in-up ${theme === 'cream' ? 'text-amber-900' : 'text-white'}`}>{storyTitle}</h1>
-              <p className={`text-lg mb-16 fade-in-up ${theme === 'cream' ? 'text-amber-700' : 'text-white/50'}`}>A Story for You</p>
+              <h1 className={`text-4xl md:text-6xl font-black text-center mb-4 leading-tight fade-in-up ${currentTheme.coverText}`}>{storyTitle}</h1>
+              <p className={`text-lg mb-16 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
               <div className="flex flex-col items-center fade-in-up">
                 <div className="relative">
-                  <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${theme === 'cream' ? 'bg-amber-300/30' : 'bg-white/10'}`} />
-                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border backdrop-blur-sm ${theme === 'cream' ? 'bg-amber-200/50 border-amber-300' : 'bg-white/10 border-white/20'}`}>
-                    <Volume2 size={36} className={theme === 'cream' ? 'text-amber-800' : 'text-white'} />
+                  <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center border backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                    <Volume2 size={36} className={currentTheme.coverText} />
                   </div>
                 </div>
-                <span className={`font-bold text-lg mt-6 uppercase tracking-widest ${theme === 'cream' ? 'text-amber-700' : 'text-white/70'}`}>Tap Anywhere</span>
+                <span className={`font-bold text-lg mt-6 uppercase tracking-widest ${currentTheme.coverSub}`}>Tap Anywhere</span>
               </div>
             </div>
           )}
@@ -977,7 +1238,7 @@
               <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6">
                 {isPlaying ? (
                   <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
-                    <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${theme === 'default' ? 'bg-indigo-400' : theme === 'high-contrast-yb' ? 'bg-yellow-400' : theme === 'cream' ? 'bg-amber-600' : 'bg-white'}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
+                    <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
                     <span className="text-sm font-semibold uppercase tracking-wider">Listening...</span>
                   </div>
                 ) : !isGenerating && (
@@ -986,8 +1247,8 @@
                   </div>
                 )}
                 <div className="w-full max-w-xs">
-                  <div className={`h-1 rounded-full overflow-hidden ${theme === 'cream' ? 'bg-amber-200' : 'bg-white/10'}`}>
-                    <div className={`h-full transition-all duration-500 rounded-full ${theme === 'default' ? 'bg-indigo-500' : theme === 'high-contrast-yb' ? 'bg-yellow-400' : theme === 'cream' ? 'bg-amber-600' : 'bg-white'}`} style={{ width: `${progress}%` }} />
+                  <div className="h-1 rounded-full overflow-hidden bg-white/10">
+                    <div className={`h-full transition-all duration-500 rounded-full ${currentTheme.progress}`} style={{ width: `${progress}%` }} />
                   </div>
                   <p className={`text-center text-xs mt-2 font-medium ${currentTheme.text} opacity-30`}>{currentIndex + 1} of {sentences.length}</p>
                 </div>
