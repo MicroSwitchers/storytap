@@ -3,10 +3,26 @@
   "short_name": "StoryTap",
   "description": "Interactive touch stories for children with accessibility features.",
   "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#f3f4f6",
+  "id": "storytap-touch-books",
+  "display": "fullscreen",
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#1e1b4b",
   "theme_color": "#6366f1",
   "orientation": "any",
+  "scope": "./",
+  "categories": [
+    "education",
+    "kids",
+    "books"
+  ],
+  "prefer_related_applications": false,
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "icon.svg",

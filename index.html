@@ -6,13 +6,24 @@
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#6366f1" />
+  <!-- iOS PWA fullscreen support -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="StoryTap" />
+  <!-- Android PWA fullscreen support -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <!-- Prevent auto-formatting of phone numbers/addresses -->
+  <meta name="format-detection" content="telephone=no, address=no, email=no" />
+  <!-- SEO -->
   <meta name="description" content="Interactive touch stories for children with accessibility features." />
   <title>StoryTap — Touch Books for Little Ones</title>
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/svg+xml" href="icon.svg" />
   <link rel="apple-touch-icon" href="icon.svg" />
+  <!-- Preconnect for faster font loading -->
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -32,30 +43,108 @@
     };
   </script>
   <style>
+    /* ================================================
+       PERFORMANCE & ACCESSIBILITY OPTIMIZATIONS
+       ================================================ */
     * {
       -webkit-tap-highlight-color: transparent;
+      /* Hint to browser for smoother animations */
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Reduce animations for users who prefer reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ================================================
+       FULLSCREEN PWA BODY STYLES
+       ================================================ */
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
     }
 
     body {
-      margin: 0;
       overscroll-behavior: none;
       font-family: 'Nunito', sans-serif;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-      padding-left: env(safe-area-inset-left);
-      padding-right: env(safe-area-inset-right);
+      /* Safe area insets for notched devices */
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      padding-left: env(safe-area-inset-left, 0px);
+      padding-right: env(safe-area-inset-right, 0px);
       -webkit-user-select: none;
       user-select: none;
       touch-action: manipulation;
-      /* Prevents double-tap zoom on some devices */
+      /* Prevent pull-to-refresh on mobile */
+      overscroll-behavior-y: contain;
+      /* GPU acceleration hint */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+    }
+
+    /* Root container fills available space */
+    #root {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+      /* Contain layout recalculations */
+      contain: layout style;
     }
 
     input,
     textarea {
       -webkit-user-select: text;
-      /* Allow typing */
       user-select: text;
       touch-action: auto;
+      /* Prevent iOS zoom on input focus */
+      font-size: 16px !important;
+    }
+
+    /* ================================================
+       ORIENTATION-SPECIFIC STYLES
+       ================================================ */
+    @media (orientation: landscape) {
+
+      /* Adjust for landscape viewing */
+      .story-text {
+        max-width: 70vw;
+      }
+    }
+
+    @media (orientation: portrait) {
+
+      /* Adjust for portrait viewing */
+      .story-text {
+        max-width: 90vw;
+      }
+    }
+
+    /* Small screens (phones) */
+    @media (max-height: 500px) and (orientation: landscape) {
+
+      /* Extra compact layout for phones in landscape */
+      .story-container {
+        padding: 1rem;
+      }
     }
 
     @keyframes breathe {
@@ -232,7 +321,7 @@
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, PenTool } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, PenTool, Maximize2, Minimize2 } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -431,6 +520,69 @@
       return { isMobile, isSafari, isIOS, hasWebGPU, memory, cores };
     };
 
+    // =============================================
+    // FULLSCREEN API (Cross-browser)
+    // =============================================
+    const enterFullscreen = (element = document.documentElement) => {
+      try {
+        if (element.requestFullscreen) {
+          return element.requestFullscreen();
+        } else if (element.webkitRequestFullscreen) {
+          // Safari/iOS
+          return element.webkitRequestFullscreen();
+        } else if (element.mozRequestFullScreen) {
+          // Firefox
+          return element.mozRequestFullScreen();
+        } else if (element.msRequestFullscreen) {
+          // IE/Edge
+          return element.msRequestFullscreen();
+        }
+      } catch (e) {
+        console.warn('Fullscreen not supported:', e);
+      }
+      return Promise.resolve();
+    };
+
+    const exitFullscreen = () => {
+      try {
+        if (document.exitFullscreen) {
+          return document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          return document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          return document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          return document.msExitFullscreen();
+        }
+      } catch (e) {
+        console.warn('Exit fullscreen failed:', e);
+      }
+      return Promise.resolve();
+    };
+
+    const isFullscreen = () => {
+      return !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+    };
+
+    const toggleFullscreen = () => {
+      if (isFullscreen()) {
+        return exitFullscreen();
+      } else {
+        return enterFullscreen();
+      }
+    };
+
+    // Check if running as installed PWA (standalone mode)
+    const isStandalone = () => {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+        window.matchMedia('(display-mode: fullscreen)').matches ||
+        window.navigator.standalone === true; // iOS Safari
+    };
     // =============================================
     // AUDIO CACHE SYSTEM (IndexedDB)
     // =============================================
@@ -808,6 +960,7 @@
       const [editingId, setEditingId] = useState(null);
       const [viewFolder, setViewFolder] = useState(null); // 'Simple Stories' or null
       const [showSettings, setShowSettings] = useState(false);
+      const [isFullscreenMode, setIsFullscreenMode] = useState(isFullscreen());
       // Library & Processing Queue
       const [library, setLibrary] = useState(() => {
         try {
@@ -907,6 +1060,18 @@
           return;
         }
 
+        // Ensure model is loaded before we start downloading
+        if (!ttsRef.current) {
+          setModelStatus('Loading voice engine for download...');
+          const success = await loadKokoroModel();
+          if (!success) {
+            console.error('Failed to load model for download');
+            setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'ready', progress: 0 } : s));
+            processingRef.current = null;
+            return;
+          }
+        }
+
         let completed = 0;
         const BATCH_SIZE = 2; // Process 2 sentences then yield heavily
 
@@ -950,13 +1115,39 @@
         }
       };
 
+      // Watch for stories that need processing (Download button was pressed)
       useEffect(() => {
         if (mode !== 'library') return; // Never cache while editing — too disruptive
         const task = library.find(s => s.status === 'processing');
-        if (task && modelReady && ttsRef.current && (!processingRef.current || processingRef.current !== task.id)) {
+        // Process if there's a task and we're not already processing it
+        if (task && (!processingRef.current || processingRef.current !== task.id)) {
           processStory(task);
         }
-      }, [library, modelReady, mode]);
+      }, [library, mode]);
+
+      // Track fullscreen state changes
+      useEffect(() => {
+        const handleFullscreenChange = () => {
+          setIsFullscreenMode(isFullscreen());
+        };
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+        return () => {
+          document.removeEventListener('fullscreenchange', handleFullscreenChange);
+          document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+          document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+          document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+        };
+      }, []);
+
+      // Handle fullscreen toggle (stops event propagation)
+      const handleFullscreenToggle = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        toggleFullscreen();
+      };
 
       const createNewBook = () => {
         setStoryTitle('');
@@ -1149,30 +1340,50 @@
         return initPromiseRef.current;
       }, []);
 
-      // Auto-init on mount
-      useEffect(() => {
-        loadKokoroModel();
-      }, [loadKokoroModel]);
+      // NOTE: Model is NOT auto-loaded on mount anymore
+      // It only loads when actually needed (first uncached sentence playback)
+      // This prevents lag in the menu on slower devices
+
+      // Load audio from IndexedDB cache ONLY (no generation)
+      // This can run without the TTS model being loaded
+      const loadFromCache = useCallback(async (text, voiceOpt, speedOpt) => {
+        const useVoice = voiceOpt || voice;
+        const useSpeed = speedOpt || speed;
+        const cleanText = cleanTextForTTS(text);
+        const cacheKey = getCacheKey(cleanText, useVoice, useSpeed);
+
+        try {
+          const cachedBlob = await getCachedAudio(cacheKey);
+          if (cachedBlob) {
+            return URL.createObjectURL(cachedBlob);
+          }
+        } catch (e) { /* Cache miss */ }
+        return null;
+      }, [voice, speed]);
 
       // Generate audio with Kokoro + persistent cache
+      // This requires the TTS model to be loaded
       const generateKokoroAudio = useCallback(async (text, voiceOpt, speedOpt) => {
-        if (!ttsRef.current) return null;
-
         const useVoice = voiceOpt || voice;
         const useSpeed = speedOpt || speed;
 
         // Clean text FIRST — normalize elongated letters, whitespace, etc.
-        // This must happen before cache key so "Allllll" and "All" share the same cache entry
         const cleanText = cleanTextForTTS(text);
-
-        // Check persistent cache first (keyed on cleaned text)
         const cacheKey = getCacheKey(cleanText, useVoice, useSpeed);
+
+        // Check persistent cache first (doesn't require model)
         try {
           const cachedBlob = await getCachedAudio(cacheKey);
           if (cachedBlob) {
             return URL.createObjectURL(cachedBlob);
           }
         } catch (e) { /* Cache miss, generate fresh */ }
+
+        // Need model to generate - ensure it's loaded
+        if (!ttsRef.current) {
+          const success = await loadKokoroModel();
+          if (!success) return null;
+        }
 
         try {
           await yieldIdle(10);
@@ -1189,7 +1400,7 @@
           console.error('Kokoro generation error:', error);
           return null;
         }
-      }, [voice, speed]);
+      }, [voice, speed, loadKokoroModel]);
 
       // =============================================
       // WEB SPEECH FALLBACK ENGINE
@@ -1240,30 +1451,36 @@
 
         const text = idx === -1 ? `Title: ${storyTitle}` : list[idx];
 
-        // Try Kokoro first
-        if (engineMode === 'kokoro' && ttsRef.current) {
-          let url = cacheRef.current[idx];
+        // First check in-memory cache (fastest)
+        let url = cacheRef.current[idx];
 
-          if (!url) {
-            setIsGenerating(true);
-            url = await generateKokoroAudio(text);
-            if (url) cacheRef.current[idx] = url;
-            setIsGenerating(false);
-          }
+        // If not in memory, try IndexedDB cache (doesn't need TTS model)
+        if (!url) {
+          url = await loadFromCache(text);
+          if (url) cacheRef.current[idx] = url; // Store in memory for next time
+        }
 
-          if (url && audioRef.current) {
-            try {
-              audioRef.current.src = url;
-              await audioRef.current.play();
-              setIsPlaying(true);
+        // If still no URL, we need to generate (this will load model if needed)
+        if (!url && engineMode !== 'fallback') {
+          setIsGenerating(true);
+          url = await generateKokoroAudio(text);
+          if (url) cacheRef.current[idx] = url;
+          setIsGenerating(false);
+        }
 
-              // NO background prefetching - audio is ONLY cached via Download button
-              // This prevents stalling on low-power devices
+        // Try to play the audio
+        if (url && audioRef.current) {
+          try {
+            audioRef.current.src = url;
+            await audioRef.current.play();
+            setIsPlaying(true);
 
-              return;
-            } catch (e) {
-              console.warn('Kokoro playback failed, trying fallback:', e);
-            }
+            // NO background prefetching - audio is ONLY cached via Download button
+            // This prevents stalling on low-power devices
+
+            return;
+          } catch (e) {
+            console.warn('Audio playback failed, trying fallback:', e);
           }
         }
 
@@ -1280,7 +1497,7 @@
 
         setIsPlaying(false);
         playCue('ready');
-      }, [engineMode, generateKokoroAudio, speakWithFallback, playCue, storyTitle]);
+      }, [engineMode, generateKokoroAudio, loadFromCache, speakWithFallback, playCue, storyTitle]);
 
       // Audio ended handler
       const handleAudioEnded = useCallback(() => {
@@ -1495,33 +1712,41 @@
         setCurrentIndex(startIndex);
         setMode('loading');
 
-        // Ensure model is loaded (should be already due to auto-init)
+        // For cached stories (downloaded via Download button):
+        // Check IndexedDB first - if first sentence is cached, we can skip model loading entirely!
+        const firstSentence = allSentences[0];
+        let firstUrl = await loadFromCache(firstSentence);
+
+        if (firstUrl) {
+          // Story is cached! Store in memory and go directly to reading
+          cacheRef.current[0] = firstUrl;
+          setModelReady(true); // Mark as ready even without model - we have cached audio
+          setMode('reading');
+          setTimeout(() => playSentence(startIndex, allSentences), 300); // Faster start for cached
+          return;
+        }
+
+        // Story NOT cached - need to generate, which requires loading the model
+        setModelStatus('Loading voice engine...');
+
         if (!ttsRef.current) {
           const success = await loadKokoroModel();
           if (!success) {
             setEngineMode('fallback');
             setModelReady(true);
             setMode('reading');
+            setTimeout(() => playSentence(startIndex, allSentences), 600);
             return;
           }
         }
 
-        // Check if story is already cached (from Download button)
-        // If it is, we don't need to generate anything - it's all ready
-        const isAlreadyCached = cacheRef.current[0] != null;
-
-        if (!isAlreadyCached && ttsRef.current) {
-          // Story NOT cached - generate just the first sentence for immediate playback
-          // No background caching - user should use Download button for full caching
-          setModelStatus('Preparing first sentence...');
-
-          try {
-            const firstSentence = allSentences[0];
-            const url = await generateKokoroAudio(firstSentence);
-            if (url) cacheRef.current[0] = url;
-          } catch (e) {
-            console.warn('Initial generation error:', e);
-          }
+        // Generate just the first sentence for immediate playback
+        setModelStatus('Preparing audio...');
+        try {
+          const url = await generateKokoroAudio(firstSentence);
+          if (url) cacheRef.current[0] = url;
+        } catch (e) {
+          console.warn('Initial generation error:', e);
         }
 
         setMode('reading');
@@ -2160,6 +2385,20 @@
             </button>
             {isHoldingExit && <div className={`absolute left-12 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap ${currentTheme.readingDark ? 'bg-black/80 text-white' : 'bg-white/90 text-black shadow-lg'}`}>Hold to exit...</div>}
           </div>
+
+          {/* Fullscreen toggle - only show when not in standalone PWA mode */}
+          {!isStandalone() && (
+            <div className="absolute top-6 right-6 z-50">
+              <button
+                onClick={handleFullscreenToggle}
+                onTouchEnd={handleFullscreenToggle}
+                className={`p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/40 hover:text-white/70' : 'bg-black/10 hover:bg-black/20 text-black/40 hover:text-black/70'}`}
+                title={isFullscreenMode ? 'Exit fullscreen' : 'Enter fullscreen'}
+              >
+                {isFullscreenMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+            </div>
+          )}
 
           {isCover && (
             <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-8`}>
