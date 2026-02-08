@@ -68,21 +68,16 @@
     /* ================================================
        FULLSCREEN PWA BODY STYLES
        ================================================ */
-    html,
-    body {
-      margin: 0;
-      padding: 0;
+    html {
       height: 100%;
-      width: 100%;
       overflow: hidden;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
     }
 
     body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      width: 100%;
       overscroll-behavior: none;
       font-family: 'Nunito', sans-serif;
       /* Safe area insets for notched devices */
@@ -100,14 +95,16 @@
       transform: translateZ(0);
     }
 
-    /* Root container fills available space */
+    /* Root container - allows scrolling for library/create modes */
     #root {
       width: 100%;
-      height: 100%;
-      overflow: hidden;
-      position: relative;
+      min-height: 100%;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* Smooth scrolling on iOS */
       /* Contain layout recalculations */
-      contain: layout style;
+      contain: style;
     }
 
     input,
@@ -1073,7 +1070,14 @@
         }
 
         let completed = 0;
-        const BATCH_SIZE = 2; // Process 2 sentences then yield heavily
+        const BATCH_SIZE = 3; // Process 3 sentences then yield
+
+        // Set initial progress to show download has started
+        setLibrary(prev => prev.map(s => s.id === story.id ? {
+          ...s,
+          progress: 0,
+          progressText: `0 of ${total}`
+        } : s));
 
         for (let i = 0; i < sentences.length; i++) {
           // Check for cancellation before each sentence
@@ -1091,25 +1095,36 @@
 
           completed++;
 
+          // Calculate progress with more precision
+          const progressPercent = Math.round((completed / total) * 100);
+
+          // Update library state immediately with both percentage and count
           setLibrary(prev => prev.map(s => s.id === story.id ? {
             ...s,
-            progress: Math.round((completed / total) * 100)
+            progress: progressPercent,
+            progressText: `${completed} of ${total}`
           } : s));
 
-          // Yield very generously - prioritize UI responsiveness over speed
-          // Every BATCH_SIZE sentences, take a longer break
+          // Force a UI update by yielding to browser immediately
           await yieldToBrowser();
+
+          // Add small delay between sentences for UI responsiveness
+          // Longer pause every BATCH_SIZE sentences
           if (i % BATCH_SIZE === BATCH_SIZE - 1) {
-            // Longer pause every few sentences to let the UI breathe
-            await new Promise(r => setTimeout(r, 300));
-            await yieldIdle(200);
+            await new Promise(r => setTimeout(r, 200));
+            await yieldIdle(100);
           } else {
-            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => setTimeout(r, 50));
           }
         }
 
         if (processingRef.current === story.id) {
-          setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'cached', progress: 100 } : s));
+          setLibrary(prev => prev.map(s => s.id === story.id ? {
+            ...s,
+            status: 'cached',
+            progress: 100,
+            progressText: null
+          } : s));
           processingRef.current = null;
           playCue('download_done');
         }
@@ -2095,9 +2110,18 @@
                 {story.status === 'processing' ? (
                   <div className="flex-1 mr-2 flex items-center gap-2">
                     <div className="flex-1">
-                      <div className={`text-xs font-bold mb-1 ${currentTheme.highlightText}`}>Downloading... {story.progress}%</div>
-                      <div className={`h-1.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-100'}`}>
-                        <div className={`h-full ${currentTheme.progress} transition-all duration-300`} style={{ width: `${story.progress}%` }} />
+                      <div className={`text-xs font-bold mb-1.5 ${currentTheme.highlightText}`}>
+                        Downloading... {story.progress}%
+                        {story.progressText && <span className="opacity-75 ml-1">({story.progressText})</span>}
+                      </div>
+                      <div className={`h-2.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-200'}`}>
+                        <div
+                          className={`h-full ${currentTheme.progress} rounded-full`}
+                          style={{
+                            width: `${story.progress}%`,
+                            transition: 'width 0.15s ease-out'
+                          }}
+                        />
                       </div>
                     </div>
                     <button
