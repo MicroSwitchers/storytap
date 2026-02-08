@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    content="width=device-width, initial-scale=1.0, minimum-scale=1.0, shrink-to-fit=no, viewport-fit=cover" />
   <meta name="theme-color" content="#6366f1" />
   <!-- iOS PWA fullscreen support -->
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -68,18 +68,19 @@
     /* ================================================
        FULLSCREEN PWA BODY STYLES
        ================================================ */
-    html {
-      height: 100%;
-      /* Allow scrolling - removing overflow:hidden */
-    }
-
+    html,
     body {
       margin: 0;
       padding: 0;
-      min-height: 100%;
+      height: 100%;
       width: 100%;
-      overflow-x: hidden;
-      overflow-y: auto;
+      /* Prevent text size inflation on mobile browsers (especially Firefox) */
+      -webkit-text-size-adjust: 100%;
+      -moz-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
       font-family: 'Nunito', sans-serif;
       /* Safe area insets for notched devices */
       padding-top: env(safe-area-inset-top, 0px);
@@ -88,37 +89,21 @@
       padding-right: env(safe-area-inset-right, 0px);
       -webkit-user-select: none;
       user-select: none;
-      /* Allow normal touch scrolling */
-      touch-action: pan-x pan-y;
       -webkit-overflow-scrolling: touch;
-      /* Prevent pull-to-refresh but allow scroll */
-      overscroll-behavior-y: contain;
     }
 
-    /* Root container - allows scrolling for library/create modes */
+    /* Root container */
     #root {
       width: 100%;
       min-height: 100%;
-      /* Contain layout recalculations */
-      contain: style;
     }
 
     input,
     textarea {
       -webkit-user-select: text;
       user-select: text;
-      touch-action: auto;
       /* Prevent iOS zoom on input focus */
       font-size: 16px !important;
-    }
-
-    /* Class for scrollable areas (library, create screens) */
-    .scrollable-area {
-      overflow-y: auto !important;
-      overflow-x: hidden !important;
-      -webkit-overflow-scrolling: touch !important;
-      touch-action: pan-y !important;
-      overscroll-behavior-y: contain;
     }
 
     /* ================================================
@@ -2176,7 +2161,7 @@
         const userStories = library.filter(s => !s.folder); // User stories have no folder property or null
 
         return (
-          <div className={`min-h-screen scrollable-area ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
+          <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
             {renderBoundary()}
             {showSettings && SettingsModal()}
 
@@ -2289,7 +2274,7 @@
         const isHighContrast = theme.includes('high-contrast');
 
         return (
-          <div className={`min-h-screen scrollable-area ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
+          <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
             {renderBoundary()}
             {showSettings && <SettingsModal />}
 
@@ -2388,12 +2373,11 @@
 
       return (
         <div
-          onTouchStart={handleInteraction}
-          onTouchMove={(e) => e.preventDefault()}
-          onMouseDown={handleInteraction}
+          onClick={handleInteraction}
           onContextMenu={(e) => e.preventDefault()}
           onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleInteraction(e); } }}
-          className="fixed inset-0 select-none touch-none cursor-pointer overflow-hidden"
+          className="fixed inset-0 select-none cursor-pointer overflow-hidden"
+          style={{ touchAction: 'none' }}
           role="button"
           tabIndex={0}
           aria-label={isCover ? 'Tap anywhere to begin the story' : isEnd ? 'Tap to start over' : `Sentence ${currentIndex + 1} of ${sentences.length}. Tap for next.`}
