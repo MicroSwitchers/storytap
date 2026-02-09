@@ -2149,6 +2149,20 @@
                 </div>
               </div>
 
+              {/* About App */}
+              <div className={`space-y-3 pt-4 border-t ${currentTheme.border}`}>
+                <h3 className={`text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>About</h3>
+                <div className={`rounded-2xl p-4 ${currentTheme.inputBg}`}>
+                  <p className={`font-bold text-base mb-1 ${currentTheme.textMain}`}>StoryTap</p>
+                  <p className={`text-sm ${currentTheme.textSub}`}>
+                    Voice powered by <span className={`font-bold ${currentTheme.textMain}`}>Kokoro TTS</span> — an open-source text-to-speech model by <span className={`font-bold ${currentTheme.textMain}`}>Hexgrad</span>.
+                  </p>
+                  <p className={`text-xs mt-2 ${currentTheme.textSub} opacity-70`}>
+                    Kokoro-82M-v1.0 running locally on your device via ONNX Runtime.
+                  </p>
+                </div>
+              </div>
+
             </div>
 
             <div className={`p-6 border-t ${currentTheme.border}`}>
@@ -2237,7 +2251,7 @@
             >
               {/* Colored Header: Title */}
               <div className={`flex-1 p-6 flex items-center justify-center text-center relative ${headerColor}`}>
-                <h3 className="text-3xl font-extrabold leading-tight text-white drop-shadow-md line-clamp-4">{story.title}</h3>
+                <h3 className="text-3xl font-extrabold leading-tight text-black line-clamp-4">{story.title}</h3>
               </div>
 
               {/* Dark Footer: Status & Actions */}
