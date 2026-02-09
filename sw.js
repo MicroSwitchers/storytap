@@ -1,4 +1,4 @@
-const CACHE_NAME = 'storytap-v1.2';
+const CACHE_NAME = 'storytap-v4.12';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

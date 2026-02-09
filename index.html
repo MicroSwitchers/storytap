@@ -95,7 +95,7 @@
     /* Root container */
     #root {
       width: 100%;
-      min-height: 100%;
+      min-height: 100dvh;
     }
 
     input,
@@ -109,54 +109,6 @@
     /* ================================================
        ORIENTATION-SPECIFIC STYLES
        ================================================ */
-    @media (orientation: landscape) {
-
-      /* Adjust for landscape viewing */
-      .story-text {
-        max-width: 70vw;
-      }
-    }
-
-    @media (orientation: portrait) {
-
-      /* Adjust for portrait viewing */
-      .story-text {
-        max-width: 90vw;
-      }
-    }
-
-    /* Small screens (phones) */
-    @media (max-height: 500px) and (orientation: landscape) {
-
-      /* Extra compact layout for phones in landscape */
-      .story-container {
-        padding: 1rem;
-      }
-    }
-
-    @keyframes breathe {
-
-      0%,
-      100% {
-        transform: scale(1);
-        opacity: 0.5;
-      }
-
-      50% {
-        transform: scale(1.1);
-        opacity: 0.7;
-      }
-    }
-
-    .ambient-orb {
-      animation: breathe 8s ease-in-out infinite;
-    }
-
-    .ambient-orb-2 {
-      animation: breathe 10s ease-in-out infinite;
-      animation-delay: -3s;
-    }
-
     @keyframes pulse-ring {
       0% {
         transform: scale(0.8);
@@ -236,39 +188,6 @@
       animation: pageTurn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    @keyframes burst {
-      0% {
-        transform: scale(0) rotate(0deg);
-        opacity: 1;
-      }
-
-      100% {
-        transform: scale(2) rotate(180deg);
-        opacity: 0;
-      }
-    }
-
-    .burst {
-      animation: burst 1s ease-out forwards;
-    }
-
-    @keyframes processingPulse {
-
-      0%,
-      100% {
-        border-color: rgba(129, 140, 248, 0.3);
-      }
-
-      50% {
-        border-color: rgba(129, 140, 248, 1);
-      }
-    }
-
-    .processing-card {
-      animation: processingPulse 2s ease-in-out infinite;
-      border-width: 3px;
-    }
-
     /* Custom Scrollbar for Settings */
     .settings-scroll::-webkit-scrollbar {
       width: 8px;
@@ -298,7 +217,7 @@
       background-color: rgba(255, 255, 255, 0.6);
     }
   </style>
-  <script src="quickstories.js"></script>
+  <script src="quickstories.js?v=4"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
@@ -308,7 +227,7 @@
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
-    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, List, Trash2, Save, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, PenTool, Maximize2, Minimize2 } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
+    import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, Trash2, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, StopCircle, PenTool, Maximize2, Minimize2, Database } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
     import { KokoroTTS } from 'https://esm.sh/kokoro-js';
 
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
@@ -317,20 +236,11 @@
     // CONFIGURATION
     // =============================================
     const VOICES = [
-      { name: "af_heart", label: "Warm & Gentle", desc: "Best for bedtime", emoji: "🌙", color: "bg-violet-500" },
-      { name: "af_sky", label: "Bright & Cheerful", desc: "Great for adventure", emoji: "☀️", color: "bg-amber-400" },
-      { name: "bf_lily", label: "Soft & British", desc: "Classic fairy tales", emoji: "🌸", color: "bg-pink-400" },
-      { name: "am_puck", label: "Playful & Fun", desc: "Silly stories", emoji: "🎭", color: "bg-emerald-400" },
-      { name: "am_fenrir", label: "Deep & Mysterious", desc: "Legends and myths", emoji: "🐺", color: "bg-slate-600" },
-      { name: "af_bella", label: "Rich & Expressive", desc: "Epic tales", emoji: "✨", color: "bg-fuchsia-500" },
+      { name: "af_heart", label: "Warm & Gentle", desc: "Natural Storyteller", emoji: "🌙", color: "bg-violet-500" },
     ];
 
-    const SPEEDS = [
-      { label: "Storytelling", value: 0.75, icon: Moon, desc: "Perfect for kids" },
-      { label: "Relaxed", value: 0.9, icon: Heart, desc: "Calm & steady" },
-      { label: "Natural", value: 1.0, icon: Sun, desc: "Standard pace" },
-      { label: "Brisk", value: 1.15, icon: Sparkles, desc: "Energetic" },
-    ];
+    // Speed is now locked to Natural (1.0) for best pronunciation
+    const NATURAL_SPEED = 1.0;
 
     const THEMES = [
       {
@@ -376,7 +286,7 @@
         coverSub: 'text-stone-800', // Dark subtext
         pulse: 'bg-black/10',
         coverBorder: 'border-black', // Black border
-        coverElementBg: 'bg-white/40',
+        coverElementBg: 'bg-black', // Solid black for icon visibility
         readingDark: false,
 
         // PWA & Setup Screen
@@ -406,7 +316,7 @@
         coverSub: 'text-sky-950', // Darker
         pulse: 'bg-sky-500/10',
         coverBorder: 'border-sky-900', // High Contrast
-        coverElementBg: 'bg-white/60',
+        coverElementBg: 'bg-black', // Solid black for icon visibility
         readingDark: false,
 
         // PWA & Setup Screen
@@ -510,43 +420,6 @@
     // =============================================
     // FULLSCREEN API (Cross-browser)
     // =============================================
-    const enterFullscreen = (element = document.documentElement) => {
-      try {
-        if (element.requestFullscreen) {
-          return element.requestFullscreen();
-        } else if (element.webkitRequestFullscreen) {
-          // Safari/iOS
-          return element.webkitRequestFullscreen();
-        } else if (element.mozRequestFullScreen) {
-          // Firefox
-          return element.mozRequestFullScreen();
-        } else if (element.msRequestFullscreen) {
-          // IE/Edge
-          return element.msRequestFullscreen();
-        }
-      } catch (e) {
-        console.warn('Fullscreen not supported:', e);
-      }
-      return Promise.resolve();
-    };
-
-    const exitFullscreen = () => {
-      try {
-        if (document.exitFullscreen) {
-          return document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-          return document.webkitExitFullscreen();
-        } else if (document.mozCancelFullScreen) {
-          return document.mozCancelFullScreen();
-        } else if (document.msExitFullscreen) {
-          return document.msExitFullscreen();
-        }
-      } catch (e) {
-        console.warn('Exit fullscreen failed:', e);
-      }
-      return Promise.resolve();
-    };
-
     const isFullscreen = () => {
       return !!(
         document.fullscreenElement ||
@@ -554,14 +427,6 @@
         document.mozFullScreenElement ||
         document.msFullscreenElement
       );
-    };
-
-    const toggleFullscreen = () => {
-      if (isFullscreen()) {
-        return exitFullscreen();
-      } else {
-        return enterFullscreen();
-      }
     };
 
     // Check if running as installed PWA (standalone mode)
@@ -578,30 +443,41 @@
     const STORE_NAME = 'audio_v2';
     const MAX_ITEMS = 300; // Limit to ~15MB of audio
 
-    const openDB = () => new Promise((resolve, reject) => {
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onerror = () => reject(request.error);
-      request.onsuccess = () => resolve(request.result);
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        // Clean up old v1 store if exists
-        if (db.objectStoreNames.contains('audio')) {
-          db.deleteObjectStore('audio');
-        }
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
-          store.createIndex('ts', 'ts'); // Timestamp index for LRU
-        }
-      };
-    });
+    // Cache the IndexedDB connection to avoid opening a new one on every read/write
+    let _dbInstance = null;
+    const openDB = () => {
+      if (_dbInstance) return Promise.resolve(_dbInstance);
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+          _dbInstance = request.result;
+          // Reset cached instance if the connection closes unexpectedly
+          _dbInstance.onclose = () => { _dbInstance = null; };
+          resolve(_dbInstance);
+        };
+        request.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          // Clean up old v1 store if exists
+          if (db.objectStoreNames.contains('audio')) {
+            db.deleteObjectStore('audio');
+          }
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            const store = db.createObjectStore(STORE_NAME, { keyPath: 'key' });
+            store.createIndex('ts', 'ts'); // Timestamp index for LRU
+          }
+        };
+      });
+    };
 
     const getCachedAudio = async (key) => {
       try {
         const db = await openDB();
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
           const tx = db.transaction(STORE_NAME, 'readwrite'); // Readwrite to update TS
           const store = tx.objectStore(STORE_NAME);
           const request = store.get(key);
+
           request.onsuccess = () => {
             const result = request.result;
             if (result) {
@@ -612,6 +488,17 @@
             } else resolve(null);
           };
           request.onerror = () => resolve(null);
+
+          // Explicit transaction handlers to prevent hanging
+          tx.oncomplete = () => { /* Transaction completed successfully */ };
+          tx.onerror = () => {
+            console.warn('IndexedDB transaction error:', tx.error);
+            resolve(null);
+          };
+          tx.onabort = () => {
+            console.warn('IndexedDB transaction aborted');
+            resolve(null);
+          };
         });
       } catch (e) { return null; }
     };
@@ -651,16 +538,11 @@
     };
 
     // Create a hash key for caching (text + voice + speed + version)
-    // Version 2: Fixed chunking bug - invalidates old partial audio
-    const CACHE_VERSION = 3; // Bumped: invalidates old entries with bad elongated-letter audio
+    // Version 4: Use explicit string keys to prevent hash collisions (fixes segment mixing)
+    const CACHE_VERSION = 4;
     const getCacheKey = (text, voice, speed) => {
-      const str = `v${CACHE_VERSION}|${text}|${voice}|${speed}`;
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = ((hash << 5) - hash) + str.charCodeAt(i);
-        hash = hash & hash;
-      }
-      return `audio_${hash}`;
+      // Use full text as key to guarantee uniqueness for sentences
+      return `v${CACHE_VERSION}|${text}|${voice}|${speed}`;
     };
 
     // Get cache statistics (item count + total blob size)
@@ -689,6 +571,7 @@
     // Delete ALL cached audio data from IndexedDB (all sessions)
     const clearAllCachedAudio = async () => {
       try {
+        _dbInstance = null; // Reset cached connection before deleting DB
         await new Promise((resolve, reject) => {
           const request = indexedDB.deleteDatabase(DB_NAME);
           request.onsuccess = () => resolve();
@@ -749,13 +632,38 @@
       return t;
     };
 
-    // Split story text into PAGES (by line) rather than sentences
-    // This restores the "intuitive" control where hitting Enter = New Page
+    // Split story text into LOGICAL PAGES (Sentences & Paragraphs)
+    // - Respects paragraph breaks (newlines)
+    // - Splits paragraphs by sentence boundaries for natural pacing
+    // - Creates 1-2 sentences per page based on punctuation
     const splitIntoSentences = (text) => {
       if (!text) return [];
-      return text.split('\n')
-        .map(l => l.replace(/^\d+[\.\)]\s*/, '').trim()) // Remove "1. ", "2. " etc.
-        .filter(l => l.length > 0);                      // Remove empty lines
+
+      // 1. Split by newlines to preserve paragraph structure
+      const paragraphs = text.split(/\n+/).map(l => l.trim()).filter(l => l);
+      const pages = [];
+
+      for (const para of paragraphs) {
+        // Remove numbered list prefixes (1., 2., etc.)
+        const cleaned = para.replace(/^\d+[\.\)]\s*/, '');
+
+        // 2. Split each paragraph by sentence delimiters (.!?)
+        // This creates natural page breaks at sentence boundaries
+        const sentences = cleaned
+          .replace(/([.!?]+)(?=\s+|$)/g, '$1|') // Mark sentence boundaries
+          .split('|')
+          .map(s => s.trim())
+          .filter(s => s);
+
+        if (sentences.length > 0) {
+          pages.push(...sentences);
+        } else {
+          // Fallback for text without punctuation
+          pages.push(cleaned);
+        }
+      }
+
+      return pages;
     };
 
     // =============================================
@@ -898,7 +806,23 @@
         }
       }, [enabled, getCtx, vibrate]);
 
-      return { play, vibrate };
+      // Suspend AudioContext when not in use to save resources
+      const suspend = useCallback(() => {
+        if (ctxRef.current && ctxRef.current.state === 'running') {
+          ctxRef.current.suspend().catch(() => { });
+        }
+      }, []);
+
+      // Cleanup on unmount
+      useEffect(() => {
+        return () => {
+          if (ctxRef.current) {
+            ctxRef.current.close().catch(() => { });
+          }
+        };
+      }, []);
+
+      return { play, vibrate, suspend };
     };
 
     // =============================================
@@ -921,22 +845,38 @@
       const [sentences, setSentences] = useState([]);
       const [currentIndex, setCurrentIndex] = useState(-1);
       const [voice, setVoice] = useState(prefs.voice || VOICES[0].name);
-      const [speed, setSpeed] = useState(prefs.speed || 0.85);
+      const speed = NATURAL_SPEED; // Locked to 1.0 for proper pronunciation
       const [isTransitioning, setIsTransitioning] = useState(false);
 
       // New Accessibility & Option States
-      const [showBoundary, setShowBoundary] = useState(prefs.showBoundary || false);
+      const [showBoundary, setShowBoundary] = useState(prefs.showBoundary !== false); // Default true
       const [boundaryColor, setBoundaryColor] = useState(prefs.boundaryColor || 'yellow');
       const [showTitlePage, setShowTitlePage] = useState(prefs.showTitlePage !== false); // Default true
-      const [loopStory, setLoopStory] = useState(prefs.loopStory || false);
+      const [endAction, setEndAction] = useState(prefs.endAction || 'stop'); // stop, library, loop, next
 
       // Lock Button Timer State
       const [isHoldingLock, setIsHoldingLock] = useState(false);
       const [lockHoldProgress, setLockHoldProgress] = useState(0);
+      const [unlockAction, setUnlockAction] = useState(prefs.unlockAction || 'hold2'); // hold1, hold2, hold3, tripleTap
+      const [lockFeedback, setLockFeedback] = useState('');
+      const lockTapRef = useRef({ count: 0, lastTime: 0 });
+      const lockStartRef = useRef(0);
+
+      const [isHoldingFS, setIsHoldingFS] = useState(false);
+      const [fsHoldProgress, setFsHoldProgress] = useState(0);
+      const fsHoldTimerRef = useRef(null);
+      const fsTapRef = useRef({ count: 0, lastTime: 0 });
+      const [fsFeedback, setFsFeedback] = useState('');
+
+      const [exitFeedback, setExitFeedback] = useState('');
+      const exitTapRef = useRef({ count: 0, lastTime: 0 });
+
+      const [settingsFeedback, setSettingsFeedback] = useState('');
+      const settingsTapRef = useRef({ count: 0, lastTime: 0 });
+      const fsStartRef = useRef(0);
+      const ignoreClickRef = useRef(false);
 
       // Engine state
-      const [engineMode, setEngineMode] = useState('kokoro'); // 'kokoro' | 'fallback'
-      const [modelReady, setModelReady] = useState(false);
       const [modelProgress, setModelProgress] = useState(0);
       const [modelStatus, setModelStatus] = useState('');
       const [loadError, setLoadError] = useState(null);
@@ -944,6 +884,7 @@
       const [isPlaying, setIsPlaying] = useState(false);
 
       const [storyToPlay, setStoryToPlay] = useState(null);
+      const currentStoryIdRef = useRef(null); // Tracks ID of currently playing story (survives storyToPlay null-out)
       const [editingId, setEditingId] = useState(null);
       const [viewFolder, setViewFolder] = useState(null); // 'Simple Stories' or null
       const [showSettings, setShowSettings] = useState(false);
@@ -956,13 +897,28 @@
             ...s,
             status: s.status || 'ready',
             progress: s.progress || 100,
-            voice: s.voice || 'af_heart',
-            speed: s.speed || 0.85
+            voice: s.voice || 'af_heart'
+            // Speed no longer stored (always uses NATURAL_SPEED)
           }));
         }
         catch { return []; }
       });
-      useEffect(() => localStorage.setItem('storytap_library_v1', JSON.stringify(library)), [library]);
+
+      // Cache statistics (for storage indicator)
+      const [cacheStats, setCacheStats] = useState({ count: 0, totalSize: 0 });
+      const updateCacheStats = useCallback(async () => {
+        const stats = await getCacheStats();
+        setCacheStats(stats);
+      }, []);
+      // Debounce library persistence — avoids thrashing localStorage during download progress updates
+      const librarySaveTimerRef = useRef(null);
+      useEffect(() => {
+        if (librarySaveTimerRef.current) clearTimeout(librarySaveTimerRef.current);
+        librarySaveTimerRef.current = setTimeout(() => {
+          localStorage.setItem('storytap_library_v1', JSON.stringify(library));
+        }, 500);
+        return () => { if (librarySaveTimerRef.current) clearTimeout(librarySaveTimerRef.current); };
+      }, [library]);
 
       // LOAD SIMPLE STORIES (JS Variable)
       // This is robust for local file:// usage where fetch() is blocked by CORS
@@ -984,7 +940,7 @@
                     title: s.title,
                     text: s.text,
                     voice: 'af_heart',
-                    speed: 0.75,
+                    // Speed no longer stored (always uses NATURAL_SPEED)
                     status: 'ready',
                     progress: 100,
                     folder: 'Simple Stories'
@@ -1016,15 +972,17 @@
       const processingRef = useRef(null);
       const lockHoldTimerRef = useRef(null);
 
-      // Save Preferences
+      // Save Preferences (single consolidated save — see note below about removed duplicate)
+      // Speed is no longer saved to preferences (locked to NATURAL_SPEED)
       useEffect(() => {
         const settings = {
-          voice, speed, textSize, theme,
+          storyTitle, rawText, voice, textSize, theme,
           soundCuesEnabled, vibrationEnabled, allowSkip,
-          showBoundary, boundaryColor, showTitlePage, loopStory
+          showBoundary, boundaryColor, showTitlePage, endAction,
+          unlockAction
         };
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-      }, [voice, speed, textSize, theme, soundCuesEnabled, vibrationEnabled, allowSkip, showBoundary, boundaryColor, showTitlePage, loopStory]);
+      }, [storyTitle, rawText, voice, textSize, theme, soundCuesEnabled, vibrationEnabled, allowSkip, showBoundary, boundaryColor, showTitlePage, endAction, unlockAction]);
 
       // Cancel a download in progress
       const cancelDownload = (storyId, e) => {
@@ -1040,8 +998,13 @@
 
         const sentences = splitIntoSentences(story.text);
 
-        const total = sentences.length;
-        if (total === 0) {
+        // Plain title in cache list (removed "Title:" prefix for cleaner speech)
+        const titleText = story.title;
+        // Also cache "The End." so it's ready instantly
+        const allItemsToCache = [titleText, ...sentences, "The End."];
+        const total = allItemsToCache.length;
+
+        if (sentences.length === 0) {
           setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'cached', progress: 100 } : s));
           processingRef.current = null;
           return;
@@ -1059,8 +1022,16 @@
           }
         }
 
+        // Mobile-aware batching: smaller batches + longer delays on mobile
+        const device = deviceInfoRef.current;
+        const isMobile = device.isMobile;
+        const BATCH_SIZE = isMobile ? 1 : 3; // Process 1 item at a time on mobile
+        const BATCH_DELAY = isMobile ? 400 : 200; // Longer breathing room on mobile
+        const ITEM_DELAY = isMobile ? 150 : 50; // More time between items on mobile
+
         let completed = 0;
-        const BATCH_SIZE = 3; // Process 3 sentences then yield
+        let consecutiveErrors = 0;
+        const MAX_CONSECUTIVE_ERRORS = 5; // Bail out if too many failures in a row
 
         // Set initial progress to show download has started
         setLibrary(prev => prev.map(s => s.id === story.id ? {
@@ -1069,42 +1040,54 @@
           progressText: `0 of ${total}`
         } : s));
 
-        for (let i = 0; i < sentences.length; i++) {
-          // Check for cancellation before each sentence
+        for (let i = 0; i < allItemsToCache.length; i++) {
+          // Check for cancellation before each item
           if (processingRef.current !== story.id) {
             console.log('Download cancelled for story:', story.id);
             return;
           }
 
           try {
-            await generateKokoroAudio(sentences[i], story.voice, story.speed);
+            // Generate and cache audio (uses story's voice, speed locked to NATURAL_SPEED)
+            await generateKokoroAudio(allItemsToCache[i], story.voice, NATURAL_SPEED, true);
+            consecutiveErrors = 0; // Reset on success
           } catch (e) {
-            console.warn('Error caching sentence:', e);
-            // Continue even if one sentence fails
+            console.warn('Error caching item:', e);
+            consecutiveErrors++;
+
+            // Bail out if device is struggling (too many failures in a row)
+            if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+              console.error('Too many consecutive errors, aborting download');
+              setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'ready', progress: 0 } : s));
+              processingRef.current = null;
+              return;
+            }
           }
 
           completed++;
-
-          // Calculate progress with more precision
           const progressPercent = Math.round((completed / total) * 100);
 
-          // Update library state immediately with both percentage and count
-          setLibrary(prev => prev.map(s => s.id === story.id ? {
-            ...s,
-            progress: progressPercent,
-            progressText: `${completed} of ${total}`
-          } : s));
+          // OPTIMIZATION: Only update UI every 5 items to reduce re-renders
+          // This dramatically improves performance on older devices
+          const shouldUpdateUI = (i % 5 === 4) || (i === allItemsToCache.length - 1);
 
-          // Force a UI update by yielding to browser immediately
+          if (shouldUpdateUI) {
+            setLibrary(prev => prev.map(s => s.id === story.id ? {
+              ...s,
+              progress: progressPercent,
+              progressText: `${completed} of ${total}`
+            } : s));
+          }
+
+          // Always yield to browser between items to keep UI responsive
           await yieldToBrowser();
 
-          // Add small delay between sentences for UI responsiveness
-          // Longer pause every BATCH_SIZE sentences
+          // Longer pause every BATCH_SIZE items for UI responsiveness
           if (i % BATCH_SIZE === BATCH_SIZE - 1) {
-            await new Promise(r => setTimeout(r, 200));
-            await yieldIdle(100);
+            await new Promise(r => setTimeout(r, BATCH_DELAY));
+            await yieldIdle(isMobile ? 200 : 100);
           } else {
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, ITEM_DELAY));
           }
         }
 
@@ -1117,6 +1100,9 @@
           } : s));
           processingRef.current = null;
           playCue('download_done');
+
+          // Update cache stats display
+          updateCacheStats();
         }
       };
 
@@ -1148,15 +1134,38 @@
       }, []);
 
       // Handle fullscreen toggle (stops event propagation)
-      const handleFullscreenToggle = (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        toggleFullscreen();
-      };
+      const handleFullscreenToggle = useCallback(() => {
+        const elem = document.documentElement;
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          if (elem.requestFullscreen) elem.requestFullscreen().catch(err => console.warn("Fullscreen error:", err));
+          else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+          setIsFullscreenMode(true);
+        } else {
+          if (document.exitFullscreen) document.exitFullscreen();
+          else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+          setIsFullscreenMode(false);
+        }
+      }, []);
+
+      // Auto-split text into pages/sentences for preview ONLY in Create Mode
+      // This prevents stale rawText from overwriting the story when loading a book
+      useEffect(() => {
+        if (mode === 'create') {
+          setSentences(splitIntoSentences(rawText));
+        }
+      }, [rawText, mode]);
+
+      // Update cache stats when on library page
+      useEffect(() => {
+        if (mode === 'library') {
+          updateCacheStats();
+        }
+      }, [mode, library, updateCacheStats]);
 
       const createNewBook = () => {
         setStoryTitle('');
         setRawText('');
+        setStoryColor('indigo');
         setEditingId(null);
         setMode('create');
       };
@@ -1166,7 +1175,8 @@
         setStoryTitle(story.title);
         setRawText(story.text);
         setVoice(story.voice || VOICES[0].name);
-        setSpeed(story.speed || 0.85);
+        // Speed is now locked to NATURAL_SPEED (1.0)
+        setStoryColor(story.color || 'indigo');
         setEditingId(story.id);
         setMode('create');
       };
@@ -1178,7 +1188,8 @@
           title: storyTitle,
           text: rawText,
           voice,
-          speed,
+          // Speed no longer saved (always uses NATURAL_SPEED)
+          color: storyColor,
           status: 'ready',  // Save without auto-caching — user can Download to pre-cache
           progress: 100
         };
@@ -1192,12 +1203,13 @@
         setMode('library');
       };
 
+      // Only allow playing stories that are fully cached (downloaded)
       const loadBookForPlay = (story) => {
-        if (story.status === 'processing') return; // Block only while downloading
+        if (story.status !== 'cached') return; // Must download first!
         setStoryTitle(story.title);
         setRawText(story.text);
         setVoice(story.voice || VOICES[0].name);
-        setSpeed(story.speed || 0.85);
+        // Speed is now locked to NATURAL_SPEED (1.0)
         setStoryToPlay(story);
       };
       const preloadBook = (story, e) => {
@@ -1205,10 +1217,52 @@
         setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'processing', progress: 0 } : s));
       };
 
-      const deleteBook = (id, e) => {
+      const deleteBook = async (story, e) => {
         e.stopPropagation();
-        if (confirm('Delete this story?')) {
-          setLibrary(prev => prev.filter(s => s.id !== id));
+
+        const isCached = story.status === 'cached';
+
+        if (isCached) {
+          // First press: Delete cached audio, keep the story
+          if (confirm(`Delete cached audio for "${story.title}"?\n\nThe story will remain in your library but you'll need to re-download it to play.`)) {
+            // Delete all cached audio entries for this story's sentences
+            const sentences = story.text.split(/(?<=[.!?])\s+/).filter(s => s.trim());
+
+            try {
+              const db = await openDB();
+              const tx = db.transaction(STORE_NAME, 'readwrite');
+              const store = tx.objectStore(STORE_NAME);
+
+              // Delete each sentence's cached audio
+              for (const sentence of sentences) {
+                const key = getCacheKey(sentence.trim(), story.voice, NATURAL_SPEED);
+                store.delete(key);
+              }
+
+              // Also delete "The End." audio if it exists
+              store.delete(getCacheKey("The End.", story.voice, NATURAL_SPEED));
+
+              await new Promise((resolve) => {
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => resolve(); // Still resolve on error
+              });
+            } catch (e) {
+              console.warn('Error deleting cached audio:', e);
+            }
+
+            // Update story status to 'ready' (no longer cached)
+            setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'ready', progress: 0 } : s));
+            playCue('tap');
+
+            // Update cache stats display
+            updateCacheStats();
+          }
+        } else {
+          // Second press (or first press if not cached): Delete the story entirely
+          if (confirm(`Permanently delete "${story.title}"?\n\nThis cannot be undone.`)) {
+            setLibrary(prev => prev.filter(s => s.id !== story.id));
+            playCue('tap');
+          }
         }
       };
       const [soundCuesEnabled, setSoundCuesEnabled] = useState(prefs.soundCuesEnabled ?? true);
@@ -1217,15 +1271,7 @@
       const [textSize, setTextSize] = useState(prefs.textSize || 'huge');
       const [allowSkip, setAllowSkip] = useState(prefs.allowSkip ?? false);
       const [showEditControls, setShowEditControls] = useState(false);
-
-      // Save preferences on change
-      useEffect(() => {
-        const toSave = {
-          storyTitle, rawText, voice, speed,
-          soundCuesEnabled, vibrationEnabled, theme, textSize, allowSkip
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      }, [storyTitle, rawText, voice, speed, soundCuesEnabled, vibrationEnabled, theme, textSize, allowSkip]);
+      const [storyColor, setStoryColor] = useState('indigo');
 
       // Exit button hold state
       const [isHoldingExit, setIsHoldingExit] = useState(false);
@@ -1244,7 +1290,6 @@
       const ttsRef = useRef(null);
       const audioRef = useRef(null);
       const cacheRef = useRef({});
-      const prefetchRef = useRef(new Set());
       const deviceInfoRef = useRef(getDeviceInfo());
       const initPromiseRef = useRef(null);
 
@@ -1261,10 +1306,7 @@
       // KOKORO TTS ENGINE (Primary)
       // =============================================
       const loadKokoroModel = useCallback(async () => {
-        if (ttsRef.current) {
-          setModelReady(true);
-          return true;
-        }
+        if (ttsRef.current) return true;
 
         if (initPromiseRef.current) return initPromiseRef.current;
 
@@ -1329,8 +1371,6 @@
             });
 
             ttsRef.current = tts;
-            setModelReady(true);
-            setEngineMode('kokoro');
             console.log('Kokoro TTS loaded successfully');
             return true;
 
@@ -1364,11 +1404,11 @@
           }
         } catch (e) { /* Cache miss */ }
         return null;
-      }, [voice, speed]);
+      }, [voice]); // speed is now constant (NATURAL_SPEED)
 
       // Generate audio with Kokoro + persistent cache
-      // This requires the TTS model to be loaded
-      const generateKokoroAudio = useCallback(async (text, voiceOpt, speedOpt) => {
+      // skipCacheCheck: true when called from processStory (we know it's not cached)
+      const generateKokoroAudio = useCallback(async (text, voiceOpt, speedOpt, skipCacheCheck = false) => {
         const useVoice = voiceOpt || voice;
         const useSpeed = speedOpt || speed;
 
@@ -1376,13 +1416,15 @@
         const cleanText = cleanTextForTTS(text);
         const cacheKey = getCacheKey(cleanText, useVoice, useSpeed);
 
-        // Check persistent cache first (doesn't require model)
-        try {
-          const cachedBlob = await getCachedAudio(cacheKey);
-          if (cachedBlob) {
-            return URL.createObjectURL(cachedBlob);
-          }
-        } catch (e) { /* Cache miss, generate fresh */ }
+        // Check persistent cache first (skip if called from download process)
+        if (!skipCacheCheck) {
+          try {
+            const cachedBlob = await getCachedAudio(cacheKey);
+            if (cachedBlob) {
+              return URL.createObjectURL(cachedBlob);
+            }
+          } catch (e) { /* Cache miss, generate fresh */ }
+        }
 
         // Need model to generate - ensure it's loaded
         if (!ttsRef.current) {
@@ -1405,45 +1447,16 @@
           console.error('Kokoro generation error:', error);
           return null;
         }
-      }, [voice, speed, loadKokoroModel]);
-
-      // =============================================
-      // WEB SPEECH FALLBACK ENGINE
-      // =============================================
-      const speakWithFallback = useCallback((text) => {
-        return new Promise((resolve, reject) => {
-          if (!window.speechSynthesis) {
-            reject(new Error('Speech synthesis not available'));
-            return;
-          }
-
-          window.speechSynthesis.cancel();
-          const utterance = new SpeechSynthesisUtterance(text);
-
-          // Find a good English voice
-          const voices = window.speechSynthesis.getVoices();
-          const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Female'))
-            || voices.find(v => v.lang.startsWith('en'))
-            || voices[0];
-          if (englishVoice) utterance.voice = englishVoice;
-
-          utterance.rate = speed * 0.9;
-          utterance.pitch = 1.0;
-          utterance.onend = resolve;
-          utterance.onerror = reject;
-
-          window.speechSynthesis.speak(utterance);
-        });
-      }, [speed]);
+      }, [voice, loadKokoroModel]); // speed is now constant (NATURAL_SPEED)
 
       // =============================================
       // UNIFIED SPEECH SYSTEM
       // =============================================
-      // NOTE: No background prefetching - audio is ONLY cached via:
-      // 1. Download button (processStory function)
-      // 2. On-demand when playing each sentence (generateKokoroAudio caches to IndexedDB)
+      // NOTE: Audio is ONLY cached via the Download button (processStory function)
+      // No background prefetching or on-demand generation during playback
       // This ensures the app never stalls on low-power devices
 
+      // Play a sentence from cache ONLY (stories must be downloaded first)
       const playSentence = useCallback(async (idx, list) => {
         if (idx < -1 || idx >= list.length) return; // Allow -1 for Title
 
@@ -1454,162 +1467,193 @@
         }
         window.speechSynthesis?.cancel();
 
-        const text = idx === -1 ? `Title: ${storyTitle}` : list[idx];
+        const text = idx === -1 ? storyTitle : list[idx];
 
         // First check in-memory cache (fastest)
         let url = cacheRef.current[idx];
 
-        // If not in memory, try IndexedDB cache (doesn't need TTS model)
+        // If not in memory, try IndexedDB cache
         if (!url) {
           url = await loadFromCache(text);
           if (url) cacheRef.current[idx] = url; // Store in memory for next time
         }
 
-        // If still no URL, we need to generate (this will load model if needed)
-        if (!url && engineMode !== 'fallback') {
-          setIsGenerating(true);
-          url = await generateKokoroAudio(text);
-          if (url) cacheRef.current[idx] = url;
-          setIsGenerating(false);
-        }
-
-        // Try to play the audio
+        // Play the cached audio (stories MUST be downloaded before playing)
         if (url && audioRef.current) {
           try {
             audioRef.current.src = url;
             await audioRef.current.play();
             setIsPlaying(true);
-
-            // NO background prefetching - audio is ONLY cached via Download button
-            // This prevents stalling on low-power devices
-
             return;
           } catch (e) {
-            console.warn('Audio playback failed, trying fallback:', e);
+            console.warn('Audio playback failed:', e);
           }
         }
 
-        // Fallback to Web Speech
-        console.log('Using Web Speech fallback');
-        setEngineMode('fallback');
-        setIsPlaying(true);
-
-        try {
-          await speakWithFallback(text);
-        } catch (e) {
-          console.error('Fallback speech error:', e);
-        }
-
-        setIsPlaying(false);
+        // No cached audio found - this shouldn't happen for downloaded stories
+        // But just in case, play a ready cue and move on
+        console.warn('No cached audio found for:', text.substring(0, 30));
         playCue('ready');
-      }, [engineMode, generateKokoroAudio, loadFromCache, speakWithFallback, playCue, storyTitle]);
+      }, [loadFromCache, playCue, storyTitle]);
 
       // Audio ended handler
       const handleAudioEnded = useCallback(() => {
         setIsPlaying(false);
+
+        // CRITICAL: Revoke blob URL to free memory after playback
+        if (audioRef.current?.src && audioRef.current.src.startsWith('blob:')) {
+          URL.revokeObjectURL(audioRef.current.src);
+        }
+
         if (currentIndex >= 0 && currentIndex < sentences.length) {
           playCue('ready');
-
-          // If next sentence is already cached (from Download), pre-load it for instant playback
-          // But NO background generation - just check if it's already in cache
-          const nextIdx = currentIndex + 1;
-          if (nextIdx < sentences.length) {
-            const nextUrl = cacheRef.current[nextIdx];
-            if (nextUrl && audioRef.current) {
-              audioRef.current.src = nextUrl;
-              audioRef.current.load(); // Force browser to decode cached audio ahead of time
-            }
-          }
-          // NO prefetching here - audio is ONLY cached via Download button
+          // Audio is already in IndexedDB cache, no need to pre-load
         }
       }, [currentIndex, sentences, playCue]);
 
-      // Exit button hold logic
-      const startHoldExit = (e) => {
-        e.preventDefault(); // Prevent synthesized mouse events from reaching parent
+      // Generic Helpers for Protected Actions
+      const getUnlockDuration = () => ({ hold1: 1000, hold2: 2000, hold3: 3000 }[unlockAction] || 2000);
+
+      const startProtectedAction = (e, setIsHolding, setProgress, setFeedback, timerRef, startTimeRef, onComplete, deferAction = false) => {
+        setIsHolding(true);
+        setFeedback('');
+        if (unlockAction === 'tripleTap') return;
+
+        const duration = getUnlockDuration();
         e.stopPropagation();
-        setIsHoldingExit(true);
-        holdStartRef.current = Date.now();
 
-        const updateProgress = () => {
-          const elapsed = Date.now() - holdStartRef.current;
-          const progress = Math.min((elapsed / 2000) * 100, 100);
-          setHoldProgress(progress);
+        startTimeRef.current = Date.now();
+        const start = startTimeRef.current;
+        const update = () => {
+          const elapsed = Date.now() - start;
+          const p = Math.min((elapsed / duration) * 100, 100);
+          setProgress(p);
 
-          if (progress >= 100) {
-            exitStory();
-            endHoldExit();
+          if (p >= 100) {
+            if (!deferAction) {
+              onComplete();
+            } else {
+              // Deferred: Play cue, stop timer, wait for release
+              if (timerRef.current) {
+                playCue('story_start');
+                cancelAnimationFrame(timerRef.current);
+                timerRef.current = null;
+              }
+            }
           } else {
-            holdTimerRef.current = requestAnimationFrame(updateProgress);
+            timerRef.current = requestAnimationFrame(update);
           }
         };
-        holdTimerRef.current = requestAnimationFrame(updateProgress);
+        timerRef.current = requestAnimationFrame(update);
       };
 
-      const endHoldExit = () => {
-        setIsHoldingExit(false);
-        setHoldProgress(0);
-        if (holdTimerRef.current) {
-          cancelAnimationFrame(holdTimerRef.current);
-          holdTimerRef.current = null;
+      const endProtectedAction = (setIsHolding, setProgress, timerRef, startTimeRef, onDeferredComplete) => {
+        if (onDeferredComplete) {
+          const duration = getUnlockDuration();
+          const elapsed = Date.now() - startTimeRef.current;
+          // Check for valid time and prevent double-fire
+          if (startTimeRef.current > 0 && elapsed >= duration) {
+            // Reset start time immediately to prevent second event (mouse/touch overlap)
+            startTimeRef.current = 0;
+            onDeferredComplete();
+            ignoreClickRef.current = true;
+            setTimeout(() => ignoreClickRef.current = false, 50);
+          }
+        }
+        setIsHolding(false);
+        setProgress(0);
+        if (timerRef.current) {
+          cancelAnimationFrame(timerRef.current);
+          timerRef.current = null;
         }
       };
 
-      // Settings hold-to-open (child-safe on library page)
-      const startHoldSettings = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsHoldingSettings(true);
-        settingsHoldStartRef.current = Date.now();
-        const updateProgress = () => {
-          const elapsed = Date.now() - settingsHoldStartRef.current;
-          const progress = Math.min((elapsed / 2000) * 100, 100);
-          setSettingsHoldProgress(progress);
-          if (progress >= 100) {
-            setShowSettings(true);
-            endHoldSettings();
+      const handleProtectedClick = (setIsHolding, setFeedback, tapRef, onComplete) => {
+        if (ignoreClickRef.current) return;
+
+        setIsHolding(false);
+        if (unlockAction === 'tripleTap') {
+          const now = Date.now();
+          if (now - tapRef.current.lastTime < 600) {
+            tapRef.current.count++;
           } else {
-            settingsHoldTimerRef.current = requestAnimationFrame(updateProgress);
+            tapRef.current.count = 1;
           }
-        };
-        settingsHoldTimerRef.current = requestAnimationFrame(updateProgress);
+          tapRef.current.lastTime = now;
+
+          if (tapRef.current.count >= 3) {
+            tapRef.current.count = 0;
+            setFeedback('Unlocked!');
+            playCue('story_start');
+            onComplete();
+          } else {
+            setFeedback(`Tap ${3 - tapRef.current.count} more times`);
+            setTimeout(() => setFeedback(''), 1500);
+          }
+        } else {
+          const sec = { hold1: '1', hold2: '2', hold3: '3' }[unlockAction] || '2';
+          setFeedback(`Hold for ${sec}s`);
+          setTimeout(() => setFeedback(''), 2000);
+        }
       };
 
-      const endHoldSettings = () => {
-        setIsHoldingSettings(false);
-        setSettingsHoldProgress(0);
-        if (settingsHoldTimerRef.current) {
-          cancelAnimationFrame(settingsHoldTimerRef.current);
-          settingsHoldTimerRef.current = null;
+      // Exit Button Logic
+      const startHoldExit = (e) => startProtectedAction(e, setIsHoldingExit, setHoldProgress, setExitFeedback, holdTimerRef, holdStartRef, exitStory);
+      const endHoldExit = () => endProtectedAction(setIsHoldingExit, setHoldProgress, holdTimerRef, holdStartRef);
+      const handleExitClick = () => handleProtectedClick(setIsHoldingExit, setExitFeedback, exitTapRef, exitStory);
+
+      // Settings Button Logic
+      const startHoldSettings = (e) => startProtectedAction(e, setIsHoldingSettings, setSettingsHoldProgress, setSettingsFeedback, settingsHoldTimerRef, settingsHoldStartRef, () => setShowSettings(true));
+      const endHoldSettings = () => endProtectedAction(setIsHoldingSettings, setSettingsHoldProgress, settingsHoldTimerRef, settingsHoldStartRef);
+      const handleSettingsClick = () => handleProtectedClick(setIsHoldingSettings, setSettingsFeedback, settingsTapRef, () => setShowSettings(true));
+
+      // Fullscreen Button Logic - Protect ONLY Exit
+      const startHoldFS = (e) => {
+        if (isFullscreenMode) {
+          startProtectedAction(e, setIsHoldingFS, setFsHoldProgress, setFsFeedback, fsHoldTimerRef, fsStartRef, handleFullscreenToggle, true);
+        }
+      };
+
+      const endHoldFS = () => {
+        if (isFullscreenMode) {
+          endProtectedAction(setIsHoldingFS, setFsHoldProgress, fsHoldTimerRef, fsStartRef, handleFullscreenToggle);
+        }
+      };
+
+      const handleFSClick = () => {
+        if (isFullscreenMode) {
+          handleProtectedClick(setIsHoldingFS, setFsFeedback, fsTapRef, handleFullscreenToggle);
+        } else {
+          handleFullscreenToggle();
         }
       };
 
       // Lock button hold timer
       const startHoldLock = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsHoldingLock(true);
-        const start = Date.now();
-        const updateProgress = () => {
-          const elapsed = Date.now() - start;
-          const progress = Math.min((elapsed / 2000) * 100, 100);
-          setLockHoldProgress(progress);
-          if (progress >= 100) {
-            setShowEditControls(prev => !prev);
-            endHoldLock();
-          } else {
-            lockHoldTimerRef.current = requestAnimationFrame(updateProgress);
-          }
-        };
-        lockHoldTimerRef.current = requestAnimationFrame(updateProgress);
+        if (showEditControls) return;
+        startProtectedAction(e, setIsHoldingLock, setLockHoldProgress, setLockFeedback, lockHoldTimerRef, lockStartRef, () => {
+          setShowEditControls(true);
+          setIsHoldingLock(false);
+          setLockFeedback('');
+          setLockHoldProgress(0);
+        });
       };
 
       const endHoldLock = () => {
-        setIsHoldingLock(false);
-        setLockHoldProgress(0);
-        if (lockHoldTimerRef.current) {
-          cancelAnimationFrame(lockHoldTimerRef.current);
-          lockHoldTimerRef.current = null;
+        if (showEditControls) return;
+        endProtectedAction(setIsHoldingLock, setLockHoldProgress, lockHoldTimerRef, lockStartRef);
+      };
+
+      const handleLockClick = () => {
+        if (showEditControls) {
+          setShowEditControls(false);
+        } else {
+          handleProtectedClick(setIsHoldingLock, setLockFeedback, lockTapRef, () => {
+            setShowEditControls(true);
+            setIsHoldingLock(false);
+            setLockFeedback('');
+            setLockHoldProgress(0);
+          });
         }
       };
 
@@ -1628,51 +1672,43 @@
         }
 
         // Context-aware tap cue
+        // Cover Page behavior: Tap advances to story (Title reads auto on load)
         if (currentIndex === -1) {
-          playCue('cover_tap');
-        } else {
-          playCue('tap');
-        }
-        setIsTransitioning(true);
-
-        const nextIndex = currentIndex + 1;
-
-        if (currentIndex >= sentences.length) {
+          // Auto-fullscreen on start
+          if (!isFullscreenMode) handleFullscreenToggle();
           playCue('story_start');
-          setTimeout(() => {
-            setCurrentIndex(-1);
-            setIsTransitioning(false);
-          }, 500);
-          return;
-        }
 
-        if (currentIndex === -1) {
-          playCue('story_start');
+          setIsTransitioning(true);
           setTimeout(() => {
             setCurrentIndex(0);
             playSentence(0, sentences);
             setIsTransitioning(false);
-          }, 300); // Reduced from 500ms for snappier start
+          }, 300);
+          return;
+        }
+
+        const nextIndex = currentIndex + 1;
+
+        if (currentIndex >= sentences.length) {
+          executeEndAction();
           return;
         }
 
         if (nextIndex >= sentences.length) {
-          if (loopStory) {
-            const loopStart = showTitlePage ? -1 : 0;
-            playCue('story_start');
-            setTimeout(() => {
-              setCurrentIndex(loopStart);
-              playSentence(loopStart, sentences);
-              setIsTransitioning(false);
-            }, 300);
-            return;
-          }
-
           playCue('story_end');
-          setTimeout(() => {
+          setTimeout(async () => {
             setCurrentIndex(sentences.length);
             setIsTransitioning(false);
-          }, 80);
+            try {
+              // Load from cache ONLY — "The End." was pre-cached during Download
+              // Never generate on-demand here (would load model and bog down mobile)
+              const url = await loadFromCache("The End.");
+              if (url && audioRef.current) {
+                audioRef.current.src = url;
+                audioRef.current.play();
+              }
+            } catch (e) { /* Audio was pre-cached via Download */ }
+          }, 30);
           return;
         }
 
@@ -1681,8 +1717,8 @@
           setCurrentIndex(nextIndex);
           playSentence(nextIndex, sentences);
           setIsTransitioning(false);
-        }, 80); // Reduced from 150ms — much snappier page turns
-      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence, loopStory, showTitlePage]);
+        }, 80);
+      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence, showTitlePage, isFullscreenMode, handleFullscreenToggle, endAction, executeEndAction]);
 
       // Ultra-responsive touch handler for accessibility
       // Fires on the SLIGHTEST contact — any finger count, any pressure
@@ -1699,87 +1735,106 @@
         handleTap();
       }, [handleTap]);
 
-      // Clear in-memory cache when voice/speed settings change
+      // Clear in-memory cache when voice settings change
       // No automatic pre-generation - audio is ONLY cached via Download button or on-demand playback
+      // Speed is locked to NATURAL_SPEED, so no need to clear cache when it changes
       useEffect(() => {
         Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
         cacheRef.current = {};
-        prefetchRef.current.clear();
-      }, [voice, speed]);
+      }, [voice]);
 
-      // Start story
-      const startStory = async () => {
-        const allSentences = splitIntoSentences(rawText);
-        if (!allSentences.length) return;
+      // Start story (stories MUST be downloaded/cached before playing)
+      const startStory = useCallback(async (textToRead) => {
+        // Clear in-memory cache from previous story to prevent Index-based mix-ups
+        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+        cacheRef.current = {};
+
+        const text = textToRead || rawText;
+        const allSentences = splitIntoSentences(text);
 
         setSentences(allSentences);
         const startIndex = showTitlePage ? -1 : 0;
         setCurrentIndex(startIndex);
-        setMode('loading');
 
-        // For cached stories (downloaded via Download button):
-        // Check IndexedDB first - if first sentence is cached, we can skip model loading entirely!
-        const firstSentence = allSentences[0];
-        let firstUrl = await loadFromCache(firstSentence);
-
-        if (firstUrl) {
-          // Story is cached! Store in memory and go directly to reading
-          cacheRef.current[0] = firstUrl;
-          setModelReady(true); // Mark as ready even without model - we have cached audio
-          setMode('reading');
-          setTimeout(() => playSentence(startIndex, allSentences), 300); // Faster start for cached
-          return;
-        }
-
-        // Story NOT cached - need to generate, which requires loading the model
-        setModelStatus('Loading voice engine...');
-
-        if (!ttsRef.current) {
-          const success = await loadKokoroModel();
-          if (!success) {
-            setEngineMode('fallback');
-            setModelReady(true);
-            setMode('reading');
-            setTimeout(() => playSentence(startIndex, allSentences), 600);
-            return;
-          }
-        }
-
-        // Generate just the first sentence for immediate playback
-        setModelStatus('Preparing audio...');
-        try {
-          const url = await generateKokoroAudio(firstSentence);
-          if (url) cacheRef.current[0] = url;
-        } catch (e) {
-          console.warn('Initial generation error:', e);
-        }
-
+        // Stories are pre-cached via Download button, so go directly to reading
+        // No loading screen needed since we're just playing from cache
         setMode('reading');
 
-        // Auto-read on entry (Title or First Sentence)
-        setTimeout(() => playSentence(startIndex, allSentences), 600);
-
-        // NO background prefetching - audio is ONLY cached via Download button
-      };
+        // Start playback after a brief moment for the UI to settle
+        setTimeout(() => playSentence(startIndex, allSentences), 200);
+      }, [rawText, showTitlePage, playSentence]);
 
       useEffect(() => {
-        if (storyToPlay && rawText === storyToPlay.text) {
-          startStory();
+        if (storyToPlay) {
+          currentStoryIdRef.current = storyToPlay.id; // Remember which story is playing
+          // Ensure we play the text of the SELECTED story, regardless of race conditions with rawText state
+          startStory(storyToPlay.text);
           setStoryToPlay(null);
         }
-      }, [storyToPlay, rawText]);
+      }, [storyToPlay]);
 
       // Exit story
-      const exitStory = () => {
+      const exitStory = useCallback(() => {
         if (audioRef.current) {
-          try { audioRef.current.pause(); audioRef.current.src = ''; } catch (e) { }
+          try {
+            // Revoke blob URL before clearing
+            if (audioRef.current.src && audioRef.current.src.startsWith('blob:')) {
+              URL.revokeObjectURL(audioRef.current.src);
+            }
+            audioRef.current.pause();
+            audioRef.current.src = '';
+            audioRef.current.load(); // Force unload audio data from memory
+          } catch (e) { }
         }
+
+        // Clean up all in-memory blob URLs for this story
+        Object.values(cacheRef.current).forEach(url => {
+          if (url && url.startsWith('blob:')) {
+            URL.revokeObjectURL(url);
+          }
+        });
+        cacheRef.current = {};
+
         window.speechSynthesis?.cancel();
+        setStoryToPlay(null);
         setMode('library');
         setCurrentIndex(-1);
         setIsPlaying(false);
         setIsGenerating(false);
-      };
+      }, []);
+
+      // Consolidated end-of-story logic
+      const executeEndAction = useCallback(() => {
+        if (endAction === 'stop') {
+          playCue('busy');
+          setIsTransitioning(false);
+          return;
+        }
+
+        playCue('tap');
+
+        if (endAction === 'library') {
+          exitStory();
+        } else if (endAction === 'loop') {
+          const startIdx = showTitlePage ? -1 : 0;
+          setCurrentIndex(startIdx);
+          playCue('story_start');
+          setTimeout(() => playSentence(startIdx, sentences), 200);
+          setIsTransitioning(false);
+        } else if (endAction === 'random') {
+          const available = library.filter(s => s.status === 'cached');
+          if (available.length > 0) {
+            const others = available.filter(s => s.id !== currentStoryIdRef.current);
+            const candidates = others.length > 0 ? others : available;
+            const randomStory = candidates[Math.floor(Math.random() * candidates.length)];
+            playCue('story_start');
+            loadBookForPlay(randomStory); // This will transition mode/index via useEffect
+            setIsTransitioning(false);
+          } else {
+            exitStory();
+          }
+        }
+      }, [endAction, library, showTitlePage, sentences, exitStory, playCue, playSentence, loadBookForPlay]);
 
       // Clear all cached audio from all storage
       const handleClearCache = async () => {
@@ -1801,8 +1856,10 @@
         // Clear in-memory cache
         Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
         cacheRef.current = {};
-        prefetchRef.current.clear();
         processingRef.current = null;
+
+        // Update cache stats display
+        updateCacheStats();
       };
 
       // =============================================
@@ -1830,8 +1887,8 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Audio feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${soundCuesEnabled ? `bg-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !soundCuesEnabled ? 'bg-zinc-700' : ''}`}>
-                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                <button onClick={() => setSoundCuesEnabled(!soundCuesEnabled)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${soundCuesEnabled ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : `${theme.includes('high-contrast') ? 'bg-zinc-700 border-zinc-500' : 'bg-slate-600 border-slate-700'}`}`}>
+                  <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${soundCuesEnabled ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
 
@@ -1846,8 +1903,8 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Haptic feedback on taps</div>
                   </div>
                 </div>
-                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative ${vibrationEnabled ? `bg-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white' : ''}` : 'bg-slate-200'} ${theme.includes('high-contrast') && !vibrationEnabled ? 'bg-zinc-700' : ''}`}>
-                  <div className={`absolute top-1 w-6 h-6 rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-1'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
+                <button onClick={() => setVibrationEnabled(!vibrationEnabled)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${vibrationEnabled ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : `${theme.includes('high-contrast') ? 'bg-zinc-700 border-zinc-500' : 'bg-slate-600 border-slate-700'}`}`}>
+                  <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${vibrationEnabled ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
 
@@ -1862,7 +1919,7 @@
                     <div className={`text-sm ${currentTheme.textSub}`}>Tap to skip during playback</div>
                   </div>
                 </div>
-                <button onClick={() => setAllowSkip(!allowSkip)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${allowSkip ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !allowSkip ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                <button onClick={() => setAllowSkip(!allowSkip)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${allowSkip ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : `${theme.includes('high-contrast') ? 'bg-zinc-700 border-zinc-500' : 'bg-slate-600 border-slate-700'}`}`}>
                   <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${allowSkip ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                 </button>
               </div>
@@ -1942,7 +1999,7 @@
                       <div className={`text-sm ${currentTheme.textSub}`}>High contrast edge outline</div>
                     </div>
                   </div>
-                  <button onClick={() => setShowBoundary(!showBoundary)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showBoundary ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !showBoundary ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                  <button onClick={() => setShowBoundary(!showBoundary)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showBoundary ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : `${theme.includes('high-contrast') ? 'bg-zinc-700 border-zinc-500' : 'bg-slate-600 border-slate-700'}`}`}>
                     <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${showBoundary ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                   </button>
                 </div>
@@ -1984,42 +2041,61 @@
                       <div className={`text-sm ${currentTheme.textSub}`}>Read title before story</div>
                     </div>
                   </div>
-                  <button onClick={() => setShowTitlePage(!showTitlePage)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showTitlePage ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !showTitlePage ? 'bg-zinc-700 border-zinc-500' : ''}`}>
+                  <button onClick={() => setShowTitlePage(!showTitlePage)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${showTitlePage ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : `${theme.includes('high-contrast') ? 'bg-zinc-700 border-zinc-500' : 'bg-slate-600 border-slate-700'}`}`}>
                     <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${showTitlePage ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
                   </button>
                 </div>
 
-                {/* Loop Story */}
-                <div className="flex items-center justify-between">
+                {/* End Action */}
+                <div className={`space-y-3 pt-4 border-t ${currentTheme.border}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-blue-100'}`}>
-                      <RefreshCw size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-blue-600'} />
+                      <Check size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-blue-600'} />
                     </div>
                     <div>
-                      <div className={`font-bold ${currentTheme.textMain}`}>Loop Story</div>
-                      <div className={`text-sm ${currentTheme.textSub}`}>Restart automatically</div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>End of Story Action</div>
+                      <div className={`text-sm ${currentTheme.textSub}`}>What happens when a story finishes</div>
                     </div>
                   </div>
-                  <button onClick={() => setLoopStory(!loopStory)} className={`w-14 h-8 rounded-full transition-colors relative border-2 ${loopStory ? `bg-${currentTheme.highlight}-500 border-${currentTheme.highlight}-500 ${theme === 'high-contrast-wb' ? 'bg-white border-white' : ''}` : 'bg-slate-300 border-slate-500'} ${theme.includes('high-contrast') && !loopStory ? 'bg-zinc-700 border-zinc-500' : ''}`}>
-                    <div className={`absolute top-0.5 w-6 h-6 rounded-full shadow transition-all ${loopStory ? 'left-7' : 'left-0.5'} ${theme.includes('high-contrast') ? 'bg-black' : 'bg-white'}`} />
-                  </button>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {[
+                      { id: 'stop', label: 'Stop', desc: 'Stay on End Screen' },
+                      { id: 'library', label: 'Library', desc: 'Return to list' },
+                      { id: 'loop', label: 'Loop', desc: 'Show Replay button' },
+                      { id: 'random', label: 'Random', desc: 'Play random story' }
+                    ].map(opt => (
+                      <button key={opt.id} onClick={() => setEndAction(opt.id)} className={`px-3 py-3 rounded-xl border-2 text-left transition-all ${endAction === opt.id ? `${currentTheme.highlightBorder} ${currentTheme.highlightBgLight} ${currentTheme.textMain} shadow-sm` : `${currentTheme.border} ${currentTheme.textSub} opacity-70`}`}>
+                        <div className="font-bold text-sm">{opt.label}</div>
+                        <div className="text-[10px] opacity-70">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Clear Audio Cache - At Bottom */}
-              <div className={`flex items-center justify-between pt-4 border-t ${currentTheme.border}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-rose-100'}`}>
-                    <Trash2 size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-rose-600'} />
+                {/* Lock Button Action */}
+                <div className={`space-y-3 pt-4 border-t ${currentTheme.border}`}>
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-red-100'}`}>
+                      <Lock size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-red-600'} />
+                    </div>
+                    <div>
+                      <div className={`font-bold ${currentTheme.textMain}`}>Unlock Method</div>
+                      <div className={`text-sm ${currentTheme.textSub}`}>How parents unlock the app</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className={`font-bold ${currentTheme.textMain}`}>Clear Audio Cache</div>
-                    <div className={`text-sm ${currentTheme.textSub}`}>Free up storage space</div>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    {[
+                      { id: 'hold1', label: 'Hold 1s' },
+                      { id: 'hold2', label: 'Hold 2s' },
+                      { id: 'hold3', label: 'Hold 3s' },
+                      { id: 'tripleTap', label: '3x Tap' }
+                    ].map(opt => (
+                      <button key={opt.id} onClick={() => setUnlockAction(opt.id)} className={`px-4 py-3 rounded-xl border-2 font-bold text-sm transition-all ${unlockAction === opt.id ? `${currentTheme.highlightBorder} ${currentTheme.highlightBgLight} ${currentTheme.textMain} shadow-sm` : `${currentTheme.border} ${currentTheme.textSub} opacity-70`}`}>
+                        {opt.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <button onClick={handleClearCache} className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${theme.includes('high-contrast') ? 'bg-rose-900/50 text-rose-200 hover:bg-rose-900' : 'bg-rose-50 text-rose-600 hover:bg-rose-100'}`}>
-                  Clear
-                </button>
               </div>
 
             </div>
@@ -2031,7 +2107,6 @@
         </div>
       );
 
-      // BOUNDARY OVERLAY (High Visibility)
       // BOUNDARY OVERLAY (High Visibility)
       const renderBoundary = () => {
         if (!showBoundary) return null;
@@ -2081,84 +2156,115 @@
       // LIBRARY SCREEN (Main Landing)
       // =============================================
       if (mode === 'library') {
-        // Helper to render card (extracted to avoid duplication)
-        const renderStoryCard = (story) => (
-          <div key={story.id} onClick={() => loadBookForPlay(story)} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group ${currentTheme.cardBg} ${story.status === 'processing' ? 'processing-card' : `border-2 ${currentTheme.border} hover:scale-[1.02]`}`}>
-            <div className={`h-2 w-full ${VOICES.find(v => v.name === story.voice)?.color || 'bg-indigo-400'}`} />
-            <div className="px-6 pt-5 pb-6 flex flex-col justify-between" style={{ height: 'calc(100% - 8px)' }}>
-              <div>
-                {story.status === 'processing' && (
-                  <div className="flex justify-end mb-2">
-                    <Loader2 className={`${currentTheme.textSub} animate-spin`} size={20} />
-                  </div>
-                )}
-                <div className={`font-bold text-2xl leading-tight mb-3 line-clamp-3 ${currentTheme.textMain}`}>{story.title}</div>
-                <div className={`text-sm leading-relaxed ${currentTheme.textSub} line-clamp-4`}>{story.text}</div>
+        const renderStoryCard = (story) => {
+          const colors = {
+            indigo: 'bg-indigo-500',
+            emerald: 'bg-emerald-500',
+            amber: 'bg-amber-500',
+            rose: 'bg-rose-500',
+            purple: 'bg-purple-500',
+            cyan: 'bg-cyan-500'
+          };
+          const headerColor = colors[story.color] || colors.indigo;
+
+          const isProcessing = story.status === 'processing';
+          const isCached = story.status === 'cached';
+
+          // Smart click handler: Play if cached, Download if not (and unlocked)
+          const handleCardClick = (e) => {
+            if (showEditControls && !isCached && !isProcessing) {
+              preloadBook(story, e);
+            } else {
+              loadBookForPlay(story);
+            }
+          };
+
+          return (
+            <div key={story.id}
+              onClick={handleCardClick}
+              className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all group flex flex-col border-4 border-slate-900 ${currentTheme.cardBg} ${isCached ? 'cursor-pointer hover:scale-[1.02] hover:shadow-2xl' : 'cursor-default opacity-90 grayscale-[0.3]'}`}
+            >
+              {/* Colored Header: Title */}
+              <div className={`flex-1 p-6 flex items-center justify-center text-center relative ${headerColor}`}>
+                <h3 className="text-3xl font-extrabold leading-tight text-white drop-shadow-md line-clamp-4">{story.title}</h3>
               </div>
 
-              <div className="flex items-center justify-between mt-4">
-                {story.status === 'processing' ? (
-                  <div className="flex-1 mr-2 flex items-center gap-2">
-                    <div className="flex-1">
-                      <div className={`text-xs font-bold mb-1.5 ${currentTheme.highlightText}`}>
-                        Downloading... {story.progress}%
-                        {story.progressText && <span className="opacity-75 ml-1">({story.progressText})</span>}
-                      </div>
-                      <div className={`h-2.5 w-full rounded-full overflow-hidden ${theme.includes('high-contrast') ? 'bg-zinc-800' : 'bg-slate-200'}`}>
-                        <div
-                          className={`h-full ${currentTheme.progress} rounded-full`}
-                          style={{
-                            width: `${story.progress}%`,
-                            transition: 'width 0.15s ease-out'
-                          }}
-                        />
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => cancelDownload(story.id, e)}
-                      className={`p-2 rounded-full transition-colors flex-shrink-0 ${theme.includes('high-contrast') ? 'text-rose-400 hover:bg-white/10' : 'text-rose-400 hover:text-rose-600 hover:bg-rose-50'}`}
-                      title="Cancel download"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                ) : story.status === 'cached' ? (
-                  <div className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-emerald-500">
-                    <Check size={12} strokeWidth={3} /> Cached & Ready
-                  </div>
-                ) : (
-                  <div className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wider ${currentTheme.textSub}`}>
-                    <Play size={12} fill="currentColor" /> Tap to Read
-                  </div>
-                )}
+              {/* Dark Footer: Status & Actions */}
+              <div className="h-24 bg-slate-900 flex items-center justify-between px-6 text-white relative border-t-4 border-slate-900">
 
-                {showEditControls && (
-                  <div className="flex items-center -mr-2">
-                    {story.status !== 'processing' && story.status !== 'cached' && (
-                      <button onClick={(e) => preloadBook(story, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `${currentTheme.textSub} hover:bg-white/10` : 'text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50'}`} title="Download audio for faster playback">
-                        <Download size={18} />
+                {/* Left: Status Icon / Main Action */}
+                <div className="flex items-center gap-3">
+                  {isProcessing ? (
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col text-white">
+                        <span className="font-black text-xl">{story.progress}%</span>
+                        <span className="text-xs font-bold opacity-80 uppercase tracking-widest">Loading</span>
+                      </div>
+                      <button
+                        onClick={(e) => cancelDownload(story.id, e)}
+                        className="p-3 rounded-2xl bg-rose-500/30 hover:bg-rose-500/50 text-rose-300 transition-all active:scale-95 border border-rose-500/20"
+                        title="Cancel download"
+                      >
+                        <X size={22} />
                       </button>
-                    )}
-                    {story.status === 'cached' && (
-                      <div className={`p-2 ${theme.includes('high-contrast') ? currentTheme.textMain : 'text-emerald-400'}`} title="Audio cached">
-                        <Download size={18} />
+                    </div>
+                  ) : isCached ? (
+                    <div className="flex items-center gap-3" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }}>
+                      <div className={`p-3 rounded-2xl bg-white/10`}>
+                        <Play size={32} fill="currentColor" />
                       </div>
-                    )}
-                    <button onClick={(e) => editBook(story, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? `${currentTheme.textSub} hover:bg-white/10` : 'text-amber-400 hover:text-amber-600 hover:bg-amber-50'}`} title="Edit Story">
-                      <Pencil size={18} />
+                      <span className={`font-bold text-lg hidden sm:block`}>Read</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 opacity-90 text-white">
+                      <Download size={24} className="shrink-0" />
+                      <span className="font-bold text-base sm:text-lg leading-tight">Process & Add This Story</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Edit Controls (Only if unlocked) */}
+                {showEditControls && (
+                  <div className="flex items-center gap-2">
+                    {/* Edit Button */}
+                    <button onClick={(e) => editBook(story, e)} className="p-3 bg-white/10 rounded-2xl hover:bg-white/20 text-white transition-all active:scale-95 shadow-lg border border-white/10">
+                      <Pencil size={22} />
                     </button>
-                    <button onClick={(e) => deleteBook(story.id, e)} className={`p-2 rounded-full transition-colors ${theme.includes('high-contrast') ? 'text-rose-400 hover:bg-white/10' : 'text-rose-300 hover:text-rose-500 hover:bg-rose-50'}`}>
-                      <Trash2 size={18} />
+
+                    {/* Delete Button */}
+                    <button onClick={(e) => deleteBook(story, e)} className="p-3 bg-rose-500/20 rounded-2xl hover:bg-rose-600/40 text-rose-400 transition-all active:scale-95 shadow-lg border border-rose-500/20">
+                      <Trash2 size={22} />
                     </button>
                   </div>
                 )}
               </div>
-            </div>
-          </div>
-        );
 
-        const simpleStories = library.filter(s => s.folder === 'Simple Stories');
-        const userStories = library.filter(s => !s.folder); // User stories have no folder property or null
+              {/* Progress Bar Overlay (Bottom edge) */}
+              {isProcessing && (
+                <div className="absolute bottom-0 left-0 h-2 bg-slate-800 w-full">
+                  <div className="h-full transition-all duration-300 bg-indigo-500" style={{ width: `${story.progress}%` }} />
+                </div>
+              )}
+            </div>
+          );
+        };
+
+        // Filter stories based on lock state:
+        // - Locked (child view): Only show cached/ready-to-play stories
+        // - Unlocked (parent view): Show all stories so parents can download them
+        const allSimpleStories = library.filter(s => s.folder === 'Simple Stories');
+        const allUserStories = library.filter(s => !s.folder);
+
+        const simpleStories = showEditControls
+          ? allSimpleStories
+          : allSimpleStories.filter(s => s.status === 'cached');
+        const userStories = showEditControls
+          ? allUserStories
+          : allUserStories.filter(s => s.status === 'cached');
+
+        // Check if there are any stories at all (for empty state message)
+        const hasAnyCachedStories = simpleStories.length > 0 || userStories.length > 0;
+        const hasAnyStories = allSimpleStories.length > 0 || allUserStories.length > 0;
 
         return (
           <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
@@ -2184,16 +2290,30 @@
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <button onMouseDown={startHoldLock} onMouseUp={endHoldLock} onMouseLeave={endHoldLock} onTouchStart={startHoldLock} onTouchEnd={endHoldLock} onTouchCancel={endHoldLock} className={`relative p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${showEditControls ? 'text-amber-500' : currentTheme.textSub}`} title="Hold to toggle lock">
-                  {isHoldingLock && (
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
-                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
-                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (lockHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
-                    </svg>
-                  )}
-                  {showEditControls ? <Unlock size={22} /> : <Lock size={22} />}
-                </button>
-                <button onMouseDown={startHoldSettings} onMouseUp={endHoldSettings} onMouseLeave={endHoldSettings} onTouchStart={startHoldSettings} onTouchEnd={endHoldSettings} onTouchCancel={endHoldSettings} className={`relative p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub}`} title="Hold for settings">
+                {!showEditControls && (
+                  <button
+                    onClick={handleLockClick}
+                    onMouseDown={startHoldLock} onMouseUp={endHoldLock} onMouseLeave={endHoldLock}
+                    onTouchStart={startHoldLock} onTouchEnd={endHoldLock} onTouchCancel={endHoldLock}
+                    className={`relative p-3 rounded-2xl shadow-md transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub} ${isHoldingLock ? `ring-4 ring-offset-4 ring-${currentTheme.highlight}-400 scale-110 z-50` : ''}`}
+                    title={unlockAction.startsWith('hold') ? "Hold to unlock" : "Tap 3 times to unlock"}
+                  >
+                    {isHoldingLock && (
+                      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
+                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (lockHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
+                      </svg>
+                    )}
+                    <Lock size={22} />
+                  </button>
+                )}
+                <button
+                  onClick={handleSettingsClick}
+                  onMouseDown={startHoldSettings} onMouseUp={endHoldSettings} onMouseLeave={endHoldSettings}
+                  onTouchStart={startHoldSettings} onTouchEnd={endHoldSettings} onTouchCancel={endHoldSettings}
+                  className={`relative p-3 rounded-2xl shadow-md hover:shadow-lg transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub} ${isHoldingSettings ? `ring-4 ring-offset-4 ring-${currentTheme.highlight}-400 scale-110 z-50` : ''}`}
+                  title="Hold for settings"
+                >
                   {isHoldingSettings && (
                     <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
                       <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
@@ -2204,9 +2324,9 @@
                 </button>
               </div>
             </header>
-            {(isHoldingSettings || isHoldingLock) && (
-              <div className={`max-w-4xl mx-auto -mt-6 mb-4 text-center text-sm font-bold ${currentTheme.textSub}`}>
-                {isHoldingLock ? 'Hold to toggle lock...' : 'Hold for settings...'}
+            {(isHoldingSettings || isHoldingLock || lockFeedback || settingsFeedback) && (
+              <div className={`max-w-4xl mx-auto -mt-6 mb-4 text-center text-sm font-bold animate-pulse ${currentTheme.textSub}`}>
+                {lockFeedback || settingsFeedback || (isHoldingLock ? 'Hold to unlock...' : 'Hold for settings...')}
               </div>
             )}
 
@@ -2223,6 +2343,17 @@
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                     {simpleStories.map(renderStoryCard)}
+
+                    {/* Empty state for folder */}
+                    {simpleStories.length === 0 && (
+                      <div className={`col-span-full flex flex-col items-center justify-center py-12 px-6 text-center`}>
+                        <p className={`text-lg ${currentTheme.textSub}`}>
+                          {showEditControls
+                            ? "Download some stories to make them available for reading."
+                            : "No stories downloaded yet. Ask a grown-up to add some!"}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -2243,7 +2374,7 @@
 
                   {/* FOLDER: Simple Stories */}
                   {simpleStories.length > 0 && (
-                    <button onClick={() => setViewFolder('Simple Stories')} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group hover:scale-[1.02] ${theme.includes('high-contrast') ? `${currentTheme.cardBg} border-2 ${currentTheme.border}` : 'bg-amber-50 border-2 border-amber-100 hover:border-amber-300'}`}>
+                    <button onClick={() => setViewFolder('Simple Stories')} className={`aspect-[3/4] relative rounded-3xl overflow-hidden shadow-xl transition-all cursor-pointer group hover:scale-[1.02] border-4 border-slate-900 ${theme.includes('high-contrast') ? currentTheme.cardBg : 'bg-amber-50 hover:bg-amber-100'}`}>
                       <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
                         <div className="relative mb-6 group-hover:scale-110 transition-transform duration-300">
                           {!theme.includes('high-contrast') && <div className="absolute inset-0 bg-amber-200 blur-xl opacity-50 rounded-full"></div>}
@@ -2260,9 +2391,72 @@
 
                   {/* User Stories */}
                   {userStories.map(renderStoryCard)}
+
+                  {/* Empty State: No stories available */}
+                  {!hasAnyCachedStories && !showEditControls && (
+                    <div className={`col-span-full flex flex-col items-center justify-center py-16 px-6 text-center`}>
+                      <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${theme.includes('high-contrast') ? `border-2 ${currentTheme.border}` : 'bg-indigo-100'}`}>
+                        <BookOpen size={48} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-indigo-400'} />
+                      </div>
+                      <h3 className={`text-2xl font-bold mb-3 ${currentTheme.textMain}`}>No Stories Yet!</h3>
+                      <p className={`text-lg mb-6 max-w-sm ${currentTheme.textSub}`}>
+                        Ask a grown-up to unlock and download some stories for you.
+                      </p>
+                      <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textSub}` : 'bg-slate-100 text-slate-500'}`}>
+                        <Lock size={14} />
+                        <span>Hold the lock button to unlock</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty State for unlocked parent view */}
+                  {!hasAnyStories && showEditControls && !viewFolder && (
+                    <div className={`col-span-full flex flex-col items-center justify-center py-8 px-6 text-center ${userStories.length === 0 && simpleStories.length === 0 ? '' : 'hidden'}`}>
+                      <p className={`text-sm ${currentTheme.textSub}`}>
+                        Tap "Create New Book" to add your first story, or download stories from Simple Stories.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
+            {/* Storage Indicator (Fixed at bottom - only visible when unlocked for parents) */}
+            {showEditControls && (
+              <div className="fixed bottom-0 left-0 right-0 z-40 pointer-events-none">
+                <div className="max-w-4xl mx-auto px-6 pb-6 pointer-events-auto">
+                  <div className={`rounded-2xl shadow-2xl border-2 overflow-hidden ${currentTheme.cardBg} ${currentTheme.border}`}>
+                    <div className="p-4 flex items-center justify-between gap-4">
+                      {/* Left: Storage Info */}
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${theme.includes('high-contrast') ? `border ${currentTheme.border}` : 'bg-indigo-100'}`}>
+                          <Database size={20} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-indigo-600'} />
+                        </div>
+                        <div>
+                          <div className={`font-bold text-sm ${currentTheme.textMain}`} style={{ color: theme.includes('high-contrast') ? (theme === 'high-contrast-yb' ? '#facc15' : '#ffffff') : undefined }}>
+                            {cacheStats.count === 0 ? 'No cached audio' : `${(cacheStats.totalSize / (1024 * 1024)).toFixed(1)} MB cached`}
+                          </div>
+                          <div className={`text-xs ${currentTheme.textSub}`} style={{ color: theme.includes('high-contrast') ? (theme === 'high-contrast-yb' ? '#fde047' : '#d1d5db') : undefined }}>
+                            {cacheStats.count === 0 ? 'Download stories to cache audio' : `${cacheStats.count} audio pages saved`}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Clear Button */}
+                      {cacheStats.count > 0 && (
+                        <button
+                          onClick={handleClearCache}
+                          className={`px-4 py-2 rounded-xl font-bold text-sm transition-all active:scale-95 shadow-md flex items-center gap-2 ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-rose-500 hover:bg-rose-600 text-white'}`}
+                        >
+                          <Trash2 size={16} />
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         );
       }
@@ -2272,91 +2466,119 @@
       // =============================================
       if (mode === 'create') {
         const isHighContrast = theme.includes('high-contrast');
+        // Use thick dark border for standard themes, or theme border for high contrast
+        const activeBorder = isHighContrast ? `border-4 ${currentTheme.border}` : 'border-4 border-slate-900';
+        const labelClass = `text-lg font-bold uppercase tracking-widest mb-3 block ${currentTheme.textSub} opacity-90`;
 
         return (
           <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
             {renderBoundary()}
-            {showSettings && <SettingsModal />}
+            {showSettings && SettingsModal()}
 
-            <div className="max-w-2xl mx-auto space-y-6">
+            <div className="max-w-3xl mx-auto space-y-8 pb-12">
               <header className="flex items-center justify-between mb-8">
-                <button onClick={() => setMode('library')} className={`flex items-center gap-2 font-bold ${currentTheme.textMain} hover:opacity-80 transition-colors`}>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center border-2 ${theme.includes('high-contrast') ? `${currentTheme.cardBg} ${currentTheme.border}` : `${currentTheme.inputBg} ${currentTheme.border}`}`}>
-                    <ArrowLeft size={20} className={currentTheme.textMain} />
+                <button onClick={() => setMode('library')} className={`flex items-center gap-3 font-bold ${currentTheme.textMain} hover:opacity-80 transition-all active:scale-95`}>
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${currentTheme.cardBg} ${activeBorder}`}>
+                    <ArrowLeft size={24} className={currentTheme.textMain} strokeWidth={3} />
                   </div>
-                  <span className="text-lg">Back</span>
+                  <span className="text-xl">Back to Library</span>
                 </button>
-                <h1 className={`text-2xl font-bold font-serif ${currentTheme.textMain}`}>{editingId ? 'Edit Story' : 'Create Story'}</h1>
+                <div className={`text-2xl font-black font-serif ${currentTheme.textMain}`}>{editingId ? 'Edit Story' : 'Create Story'}</div>
               </header>
 
-              <div className={`rounded-2xl p-4 shadow-lg ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-indigo-500 text-white shadow-indigo-200'}`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${isHighContrast ? `border ${currentTheme.border}` : 'bg-white/20'}`}>
-                    <Volume2 size={20} className={isHighContrast ? currentTheme.textMain : 'text-white'} />
+              <div className={`${currentTheme.cardBg} rounded-3xl p-6 md:p-8 space-y-10 ${activeBorder} shadow-2xl`}>
+
+                {/* Intro / Help Text */}
+                <div className={`p-5 rounded-2xl flex gap-4 ${isHighContrast ? `border-4 ${currentTheme.border}` : 'bg-slate-100 border-4 border-slate-200'}`}>
+                  <div className={`p-3 rounded-xl h-fit flex-shrink-0 ${isHighContrast ? `${currentTheme.highlightBgLight} ${currentTheme.textMain}` : 'bg-indigo-500 text-white'}`}>
+                    <Sparkles size={24} fill="currentColor" />
                   </div>
-                  <div>
-                    <h3 className="font-bold mb-1">Designed for Blind Children</h3>
-                    <p className={`text-sm ${isHighContrast ? currentTheme.textSub : 'text-white/80'}`}>Your child taps anywhere to hear each sentence with audio cues and vibrations.</p>
-                  </div>
-                </div>
-              </div>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className={`font-bold text-lg mb-1 ${currentTheme.textMain}`}>Create Custom Stories</h3>
+                      <p className={`text-base leading-relaxed ${currentTheme.textSub}`}>
+                        In this menu, you can input a short story for your child. It will be processed locally by a task-specific AI model on your device into a realistic voice. <strong>No data will leave your device.</strong>
+                      </p>
+                    </div>
 
-              {modelReady && (
-                <div className={`flex items-center justify-center gap-2 rounded-full py-2 px-4 mx-auto w-fit ${isHighContrast ? `${currentTheme.cardBg} border ${currentTheme.border} ${currentTheme.textMain}` : 'bg-emerald-50 text-emerald-600'}`}>
-                  <Check size={16} strokeWidth={3} />
-                  <span className="text-sm font-bold">{engineMode === 'kokoro' ? 'Premium voice ready' : 'Voice ready'}</span>
-                </div>
-              )}
+                    <div className={`text-base leading-relaxed ${currentTheme.textSub} opacity-90 space-y-2`}>
+                      <p className="italic">
+                        Note: Processing (saving the story to your child's library) <strong>takes time</strong> because it runs entirely on your device. Speed depends on the power of your device (phone, tablet, or computer).
+                      </p>
+                      <p className={`text-sm font-bold border-l-4 ${isHighContrast ? 'border-current' : 'border-indigo-400'} pl-3 py-1`}>
+                        This app is not connected to the cloud, so you will need to leave your app open while initially processing the story. This only needs to be done once.
+                        <span className="block font-normal opacity-90 mt-1">Tip: 5-8 sentences is ideal for most mobile devices.</span>
+                      </p>
+                    </div>
 
-              <div className={`${currentTheme.cardBg} rounded-3xl shadow-xl p-6 md:p-8 space-y-8 border ${currentTheme.border} transition-colors`}>
-                <div className="space-y-2">
-                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Title</label>
-                  <input type="text" value={storyTitle} onChange={e => setStoryTitle(e.target.value)} className={`w-full p-4 rounded-2xl border-2 text-xl font-bold focus:outline-none transition-colors ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} ${currentTheme.highlightFocus}`} placeholder="Once Upon a Time..." />
-                </div>
-
-                <div className="space-y-2">
-                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Story Text</label>
-                  <textarea value={rawText} onChange={e => setRawText(e.target.value)} className={`w-full min-h-[180px] p-4 rounded-2xl border-2 text-base leading-relaxed focus:outline-none transition-colors font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${currentTheme.border} ${currentTheme.highlightFocus}`} placeholder="Paste or type your story here..." />
-                </div>
-
-                <div className="space-y-3">
-                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Narrator Voice</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {VOICES.map(v => (
-                      <button key={v.name} onClick={() => setVoice(v.name)} className={`relative p-4 rounded-2xl border-2 text-left transition-all overflow-hidden group ${voice === v.name ? `${currentTheme.highlightBorder} shadow-lg` : `${currentTheme.border} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg} ${currentTheme.textMain}`}>
-                        {!isHighContrast && <div className={`absolute inset-0 ${v.color} opacity-0 group-hover:opacity-10 transition-opacity ${voice === v.name ? 'opacity-20' : ''}`} />}
-                        <div className="relative flex items-center gap-3">
-                          <span className="text-2xl">{v.emoji}</span>
-                          <div>
-                            <div className="font-bold">{v.label}</div>
-                            <div className={`text-xs ${currentTheme.textSub}`}>{v.desc}</div>
-                          </div>
-                        </div>
-                        {voice === v.name && <div className={`absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center ${isHighContrast ? (theme === 'high-contrast-yb' ? 'bg-yellow-400 text-black' : 'bg-white text-black') : 'bg-indigo-500 text-white'}`}><Check size={12} /></div>}
-                      </button>
-                    ))}
+                    <div className={`mt-2 pt-3 border-t-2 ${isHighContrast ? 'border-current' : 'border-slate-300'} opacity-80 text-sm ${currentTheme.textSub}`}>
+                      <div className={`font-bold uppercase text-xs tracking-wider mb-1 flex items-center gap-1 ${currentTheme.textMain}`}><Database size={12} /> Storage Info</div>
+                      Stories are saved in your internet browser and consume space. You can check usage in the Settings menu and delete books to reclaim space.
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-3">
-                  <label className={`text-xs font-bold uppercase tracking-wide ${currentTheme.textSub}`}>Reading Speed</label>
-                  <div className="flex gap-2">
-                    {SPEEDS.map(s => {
-                      const Icon = s.icon;
+                {/* Title Input */}
+                <div>
+                  <label className={labelClass}>Story Title</label>
+                  <input
+                    type="text"
+                    value={storyTitle}
+                    onChange={e => setStoryTitle(e.target.value)}
+                    className={`w-full p-5 rounded-2xl text-2xl font-bold focus:outline-none transition-all ${currentTheme.inputBg} ${currentTheme.textMain} ${activeBorder} focus:ring-4 focus:ring-current placeholder:opacity-50`}
+                    style={{ color: theme.includes('high-contrast') ? (theme === 'high-contrast-yb' ? '#facc15' : '#ffffff') : undefined }}
+                    placeholder="e.g. The Brave Little Toaster"
+                  />
+                </div>
+
+                {/* Text Input */}
+                <div>
+                  <label className={labelClass}>Story Text</label>
+                  <textarea
+                    value={rawText}
+                    onChange={e => setRawText(e.target.value)}
+                    className={`w-full min-h-[240px] p-5 rounded-2xl text-xl leading-relaxed focus:outline-none transition-all font-serif ${currentTheme.inputBg} ${currentTheme.textMain} ${activeBorder} focus:ring-4 focus:ring-current placeholder:opacity-50`}
+                    style={{ color: theme.includes('high-contrast') ? (theme === 'high-contrast-yb' ? '#facc15' : '#ffffff') : undefined }}
+                    placeholder="Type or paste the full story here..."
+                  />
+                </div>
+
+                {/* Card Color */}
+                <div>
+                  <label className={labelClass}>Card Header Color</label>
+                  <div className="grid grid-cols-6 gap-4">
+                    {['indigo', 'emerald', 'amber', 'rose', 'purple', 'cyan'].map(c => {
+                      const colorMap = {
+                        indigo: 'bg-indigo-500',
+                        emerald: 'bg-emerald-500',
+                        amber: 'bg-amber-500',
+                        rose: 'bg-rose-500',
+                        purple: 'bg-purple-500',
+                        cyan: 'bg-cyan-500'
+                      };
+                      const bg = colorMap[c];
+                      const isSelected = storyColor === c;
+
                       return (
-                        <button key={s.value} onClick={() => setSpeed(s.value)} className={`flex-1 p-4 rounded-2xl border-2 text-center transition-all ${speed === s.value ? `${currentTheme.highlightBorder} ${isHighContrast ? `${currentTheme.textMain} ${currentTheme.highlightBgLight}` : 'bg-indigo-50 text-indigo-700'}` : `${currentTheme.border} ${currentTheme.textSub} ${isHighContrast ? '' : 'hover:border-slate-200'}`} ${currentTheme.inputBg}`}>
-                          <Icon size={20} className="mx-auto mb-1" />
-                          <div className="font-bold text-sm">{s.label}</div>
+                        <button
+                          key={c}
+                          onClick={() => setStoryColor(c)}
+                          className={`h-16 rounded-2xl transition-all ${bg} ${activeBorder} ${isSelected ? 'ring-4 ring-offset-4 ring-slate-900 scale-105 shadow-xl z-10' : 'opacity-80 hover:opacity-100 hover:scale-105'}`}
+                          title={`Select ${c} color`}
+                        >
+                          {isSelected && <Check className="mx-auto text-white" size={32} strokeWidth={4} />}
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                <button onClick={saveCreatedBook} disabled={!rawText.trim() || !storyTitle.trim()} className={`w-full font-extrabold py-5 rounded-2xl text-xl flex items-center justify-center gap-3 shadow-xl transition-all duration-500 disabled:opacity-50 ${isHighContrast ? `${currentTheme.border} border-2 ${currentTheme.textMain} hover:bg-white/10` : 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-indigo-200'}`}>
-                  <Sparkles fill={isHighContrast ? "currentColor" : "white"} size={24} />
-                  {editingId ? 'Save Changes' : 'Save Book'}
+                {/* Save Button */}
+                <button onClick={saveCreatedBook} disabled={!rawText.trim() || !storyTitle.trim()} className={`w-full py-6 rounded-2xl text-2xl font-black flex items-center justify-center gap-4 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${isHighContrast ? `${currentTheme.cardBg} ${currentTheme.textMain} border-4 ${currentTheme.border}` : 'bg-slate-900 text-white shadow-xl hover:bg-slate-800'}`}>
+                  <Sparkles size={28} />
+                  {editingId ? 'Save Changes' : 'Save New Story'}
                 </button>
+
               </div>
             </div>
           </div>
@@ -2386,8 +2608,13 @@
           {renderBoundary()}
           <audio ref={audioRef} onEnded={handleAudioEnded} preload="auto" hidden />
 
-          <div className="absolute top-6 left-6 z-50">
-            <button onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit} onTouchStart={startHoldExit} onTouchEnd={endHoldExit} onTouchCancel={endHoldExit} className={`relative p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/40 hover:text-white/70' : 'bg-black/10 hover:bg-black/20 text-black/40 hover:text-black/70'}`}>
+          <div className="absolute top-6 left-6 z-[60]">
+            <button
+              onClick={handleExitClick}
+              onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit}
+              onTouchStart={startHoldExit} onTouchEnd={endHoldExit} onTouchCancel={endHoldExit}
+              className={`relative p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white/90' : 'bg-black/10 hover:bg-black/20 text-black/60 hover:text-black/90'}`}
+            >
               {isHoldingExit && (
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
                   <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="2" strokeOpacity="0.2" />
@@ -2396,20 +2623,28 @@
               )}
               <ArrowLeft size={18} />
             </button>
-            {isHoldingExit && <div className={`absolute left-12 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap ${currentTheme.readingDark ? 'bg-black/80 text-white' : 'bg-white/90 text-black shadow-lg'}`}>Hold to exit...</div>}
+            {(isHoldingExit || exitFeedback) && <div className={`absolute left-14 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap ${currentTheme.readingDark ? 'bg-black/80 text-white' : 'bg-white/90 text-black shadow-lg'}`}>{exitFeedback || 'Hold to exit...'}</div>}
           </div>
 
-          {/* Fullscreen toggle - only show when not in standalone PWA mode */}
+          {/* Fullscreen toggle - now protected */}
           {!isStandalone() && (
-            <div className="absolute top-6 right-6 z-50">
+            <div className="absolute top-6 right-6 z-[60]">
               <button
-                onClick={handleFullscreenToggle}
-                onTouchEnd={handleFullscreenToggle}
-                className={`p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/40 hover:text-white/70' : 'bg-black/10 hover:bg-black/20 text-black/40 hover:text-black/70'}`}
+                onClick={handleFSClick}
+                onMouseDown={startHoldFS} onMouseUp={endHoldFS} onMouseLeave={endHoldFS}
+                onTouchStart={startHoldFS} onTouchEnd={endHoldFS} onTouchCancel={endHoldFS}
+                className={`relative p-3 rounded-full transition-all ${currentTheme.readingDark ? 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white/90' : 'bg-black/10 hover:bg-black/20 text-black/60 hover:text-black/90'} ${isHoldingFS ? `ring-4 ring-offset-4 ring-${currentTheme.highlight}-400 ring-offset-black/20 scale-110` : ''}`}
                 title={isFullscreenMode ? 'Exit fullscreen' : 'Enter fullscreen'}
               >
+                {isHoldingFS && (
+                  <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="2" strokeOpacity="0.2" />
+                    <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="100" strokeDashoffset={100 - fsHoldProgress} strokeLinecap="round" />
+                  </svg>
+                )}
                 {isFullscreenMode ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
               </button>
+              {(isHoldingFS || fsFeedback) && <div className={`absolute right-14 top-1/2 -translate-y-1/2 text-xs px-3 py-1.5 rounded-lg whitespace-nowrap ${currentTheme.readingDark ? 'bg-black/80 text-white' : 'bg-white/90 text-black shadow-lg'}`}>{fsFeedback || 'Hold to toggle...'}</div>}
             </div>
           )}
 
@@ -2422,8 +2657,8 @@
               )}
               <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
                 <div className="flex-1 flex flex-col items-center justify-center w-full">
-                  <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black/5'}`}>
-                    <BookOpen size={40} className={currentTheme.coverText} />
+                  <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                    <BookOpen size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                   </div>
                   <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl`}>{storyTitle}</h1>
                   <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
@@ -2431,7 +2666,7 @@
                   <div className="relative mb-8">
                     <div className={`absolute inset-0 w-20 h-20 rounded-full pulse-ring ${currentTheme.pulse}`} />
                     <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                      <Volume2 size={32} className={currentTheme.coverText} />
+                      <Volume2 size={32} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
                   </div>
                 </div>
@@ -2480,14 +2715,54 @@
 
           {
             isEnd && (
-              <div className={`absolute inset-0 flex flex-col items-center justify-center p-8 ${theme.includes('high-contrast') ? currentTheme.bg : 'bg-orange-500'}`}>
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">{[...Array(12)].map((_, i) => (<Sparkles key={i} size={16 + i * 2} className={`absolute burst ${theme.includes('high-contrast') ? `${currentTheme.text} opacity-40` : 'text-white/40'}`} style={{ top: `${20 + Math.random() * 60}%`, left: `${10 + Math.random() * 80}%`, animationDelay: `${i * 0.1}s` }} />))}</div>
-                <Sparkles size={80} className={`animate-bounce mb-8 ${theme.includes('high-contrast') ? currentTheme.text : 'text-white'}`} />
-                <h2 className={`text-5xl md:text-7xl font-black text-center mb-4 ${theme.includes('high-contrast') ? currentTheme.text : 'text-white'}`}>The End!</h2>
-                <p className={`text-xl mb-16 ${theme.includes('high-contrast') ? `${currentTheme.text} opacity-80` : 'text-white/80'}`}>What a great story!</p>
-                <div className="flex flex-col items-center">
-                  <div className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 pulse-ring ${theme.includes('high-contrast') ? `border-2 ${currentTheme.coverBorder}` : 'bg-white/20'}`}><Heart size={36} className={theme.includes('high-contrast') ? currentTheme.text : 'text-white'} fill="currentColor" /></div>
-                  <span className={`font-bold text-lg uppercase tracking-wider ${theme.includes('high-contrast') ? currentTheme.text : 'text-white/80'}`}>Tap to Start Over</span>
+              <div
+                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-8 z-50 cursor-pointer`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  executeEndAction();
+                }}
+              >
+                {!theme.includes('high-contrast') && (
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none"></div>
+                )}
+                <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                  <div className="flex-1 flex flex-col items-center justify-center w-full">
+                    {/* Check Icon Card */}
+                    <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                      <Check size={40} strokeWidth={3} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                    </div>
+
+                    <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText}`}>The End</h1>
+                    <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>What a great story!</p>
+
+                    {/* Action Icon (Centerpiece) */}
+                    {endAction !== 'stop' && (
+                      <div className="relative mb-8">
+                        <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                          {endAction === 'library' && <ArrowLeft size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'loop' && <RefreshCw size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'random' && <Sparkles size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                        </div>
+                      </div>
+                    )}
+
+                    {endAction === 'stop' && (
+                      <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 opacity-50 ${currentTheme.coverBorder}`}>
+                        <StopCircle size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col items-center pb-8 opacity-80">
+                    <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>
+                      {endAction === 'library' && 'Tap for Library'}
+                      {endAction === 'loop' && 'Tap to Read Again'}
+                      {endAction === 'random' && 'Tap for Surprise'}
+                      {endAction === 'stop' && 'Story Finished'}
+                    </span>
+                    {endAction !== 'stop' && <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-1`}>Next Step</span>}
+                  </div>
                 </div>
               </div>
             )
