@@ -474,23 +474,18 @@
       try {
         const db = await openDB();
         return new Promise((resolve, reject) => {
-          const tx = db.transaction(STORE_NAME, 'readwrite'); // Readwrite to update TS
+          // READONLY transaction — fast, non-blocking, no blob rewriting
+          // LRU timestamp update removed: it was rewriting entire audio blobs on every read
+          const tx = db.transaction(STORE_NAME, 'readonly');
           const store = tx.objectStore(STORE_NAME);
           const request = store.get(key);
 
           request.onsuccess = () => {
             const result = request.result;
-            if (result) {
-              // Update timestamp (LRU)
-              result.ts = Date.now();
-              store.put(result);
-              resolve(result.blob);
-            } else resolve(null);
+            resolve(result ? result.blob : null);
           };
           request.onerror = () => resolve(null);
 
-          // Explicit transaction handlers to prevent hanging
-          tx.oncomplete = () => { /* Transaction completed successfully */ };
           tx.onerror = () => {
             console.warn('IndexedDB transaction error:', tx.error);
             resolve(null);
@@ -984,6 +979,33 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
       }, [storyTitle, rawText, voice, textSize, theme, soundCuesEnabled, vibrationEnabled, allowSkip, showBoundary, boundaryColor, showTitlePage, endAction, unlockAction]);
 
+      // Send OS notification (PWA/Browser)
+      const sendNotification = async (title, body) => {
+        // Check if notifications are supported
+        if (!('Notification' in window)) return;
+
+        // Request permission if not already granted
+        if (Notification.permission === 'default') {
+          await Notification.requestPermission();
+        }
+
+        // Send notification if permission granted
+        if (Notification.permission === 'granted') {
+          try {
+            new Notification(title, {
+              body,
+              icon: 'icon.svg',
+              badge: 'icon.svg',
+              tag: 'storytap-download',
+              requireInteraction: false,
+              silent: false
+            });
+          } catch (e) {
+            console.log('Notification failed:', e);
+          }
+        }
+      };
+
       // Cancel a download in progress
       const cancelDownload = (storyId, e) => {
         if (e) e.stopPropagation();
@@ -1023,11 +1045,12 @@
         }
 
         // Mobile-aware batching: smaller batches + longer delays on mobile
+        // CRITICAL: Aggressive delays prevent Android "App Not Responding" dialog
         const device = deviceInfoRef.current;
         const isMobile = device.isMobile;
         const BATCH_SIZE = isMobile ? 1 : 3; // Process 1 item at a time on mobile
-        const BATCH_DELAY = isMobile ? 400 : 200; // Longer breathing room on mobile
-        const ITEM_DELAY = isMobile ? 150 : 50; // More time between items on mobile
+        const BATCH_DELAY = isMobile ? 800 : 200; // Much longer pause on mobile (800ms)
+        const ITEM_DELAY = isMobile ? 300 : 50; // Longer between items on mobile
 
         let completed = 0;
         let consecutiveErrors = 0;
@@ -1083,11 +1106,13 @@
           await yieldToBrowser();
 
           // Longer pause every BATCH_SIZE items for UI responsiveness
+          // On mobile, aggressive yielding prevents ANR dialog
           if (i % BATCH_SIZE === BATCH_SIZE - 1) {
             await new Promise(r => setTimeout(r, BATCH_DELAY));
-            await yieldIdle(isMobile ? 200 : 100);
+            await yieldIdle(isMobile ? 500 : 100); // Much longer idle on mobile
           } else {
             await new Promise(r => setTimeout(r, ITEM_DELAY));
+            await yieldIdle(isMobile ? 200 : 50); // Add idle in else branch too
           }
         }
 
@@ -1101,17 +1126,24 @@
           processingRef.current = null;
           playCue('download_done');
 
+          // Send OS notification
+          sendNotification(
+            '✅ Story Ready!',
+            `"${story.title}" is ready to read.`
+          );
+
           // Update cache stats display
           updateCacheStats();
         }
       };
 
       // Watch for stories that need processing (Download button was pressed)
+      // ONLY ONE story can process at a time
       useEffect(() => {
         if (mode !== 'library') return; // Never cache while editing — too disruptive
         const task = library.find(s => s.status === 'processing');
-        // Process if there's a task and we're not already processing it
-        if (task && (!processingRef.current || processingRef.current !== task.id)) {
+        // Process ONLY if there's a task and nothing else is currently processing
+        if (task && !processingRef.current) {
           processStory(task);
         }
       }, [library, mode]);
@@ -1214,6 +1246,11 @@
       };
       const preloadBook = (story, e) => {
         e.stopPropagation();
+        // Prevent starting a new download if one is already in progress
+        if (processingRef.current) {
+          playCue('busy');
+          return;
+        }
         setLibrary(prev => prev.map(s => s.id === story.id ? { ...s, status: 'processing', progress: 0 } : s));
       };
 
@@ -1433,7 +1470,9 @@
         }
 
         try {
-          await yieldIdle(10);
+          // Longer yield before generation to prevent ANR on mobile
+          const device = deviceInfoRef.current;
+          await yieldIdle(device?.isMobile ? 100 : 10);
 
           const audio = await ttsRef.current.generate(cleanText, { voice: useVoice, speed: useSpeed });
           const resultBlob = audio.toBlob();
@@ -1497,17 +1536,13 @@
       }, [loadFromCache, playCue, storyTitle]);
 
       // Audio ended handler
+      // NOTE: Do NOT revoke blob URLs here — they are kept in cacheRef for instant replay
+      // All blob URLs are cleaned up when exiting the story (exitStory)
       const handleAudioEnded = useCallback(() => {
         setIsPlaying(false);
 
-        // CRITICAL: Revoke blob URL to free memory after playback
-        if (audioRef.current?.src && audioRef.current.src.startsWith('blob:')) {
-          URL.revokeObjectURL(audioRef.current.src);
-        }
-
         if (currentIndex >= 0 && currentIndex < sentences.length) {
           playCue('ready');
-          // Audio is already in IndexedDB cache, no need to pre-load
         }
       }, [currentIndex, sentences, playCue]);
 
@@ -1659,7 +1694,7 @@
 
       // Main tap handler
       const handleTap = useCallback(() => {
-        if (isGenerating || isTransitioning) { playCue('busy'); return; }
+        if (isTransitioning) { playCue('busy'); return; }
 
         if (isPlaying) {
           if (!allowSkip) { playCue('busy'); return; }
@@ -1696,18 +1731,17 @@
 
         if (nextIndex >= sentences.length) {
           playCue('story_end');
-          setTimeout(async () => {
+          setTimeout(() => {
             setCurrentIndex(sentences.length);
             setIsTransitioning(false);
-            try {
-              // Load from cache ONLY — "The End." was pre-cached during Download
-              // Never generate on-demand here (would load model and bog down mobile)
-              const url = await loadFromCache("The End.");
-              if (url && audioRef.current) {
+            // "The End." audio is pre-loaded in memory cache (idx = sentences.length)
+            const url = cacheRef.current[sentences.length];
+            if (url && audioRef.current) {
+              try {
                 audioRef.current.src = url;
                 audioRef.current.play();
-              }
-            } catch (e) { /* Audio was pre-cached via Download */ }
+              } catch (e) { /* Audio play failed */ }
+            }
           }, 30);
           return;
         }
@@ -1718,7 +1752,7 @@
           playSentence(nextIndex, sentences);
           setIsTransitioning(false);
         }, 80);
-      }, [currentIndex, sentences, isGenerating, isPlaying, isTransitioning, allowSkip, playCue, playSentence, showTitlePage, isFullscreenMode, handleFullscreenToggle, endAction, executeEndAction]);
+      }, [currentIndex, sentences, isPlaying, isTransitioning, allowSkip, playCue, playSentence, showTitlePage, isFullscreenMode, handleFullscreenToggle, endAction, executeEndAction]);
 
       // Ultra-responsive touch handler for accessibility
       // Fires on the SLIGHTEST contact — any finger count, any pressure
@@ -1744,9 +1778,12 @@
       }, [voice]);
 
       // Start story (stories MUST be downloaded/cached before playing)
+      // PRE-LOADS all audio into memory so ZERO IndexedDB access during reading
       const startStory = useCallback(async (textToRead) => {
-        // Clear in-memory cache from previous story to prevent Index-based mix-ups
-        Object.values(cacheRef.current).forEach(url => URL.revokeObjectURL(url));
+        // Clear in-memory cache from previous story
+        Object.values(cacheRef.current).forEach(url => {
+          if (url && url.startsWith('blob:')) URL.revokeObjectURL(url);
+        });
         cacheRef.current = {};
 
         const text = textToRead || rawText;
@@ -1756,13 +1793,27 @@
         const startIndex = showTitlePage ? -1 : 0;
         setCurrentIndex(startIndex);
 
-        // Stories are pre-cached via Download button, so go directly to reading
-        // No loading screen needed since we're just playing from cache
+        // Go directly to reading mode — stories are pre-cached via Download
         setMode('reading');
 
-        // Start playback after a brief moment for the UI to settle
-        setTimeout(() => playSentence(startIndex, allSentences), 200);
-      }, [rawText, showTitlePage, playSentence]);
+        // PRE-LOAD ALL audio into memory from IndexedDB
+        // This eliminates ALL IndexedDB access during reading for instant playback
+        const preloadItems = [
+          { idx: -1, text: storyTitle },             // Title page
+          ...allSentences.map((s, i) => ({ idx: i, text: s })), // Story pages
+          { idx: allSentences.length, text: "The End." }        // End page
+        ];
+
+        for (const item of preloadItems) {
+          try {
+            const url = await loadFromCache(item.text);
+            if (url) cacheRef.current[item.idx] = url;
+          } catch (e) { /* Skip failed items */ }
+        }
+
+        // Start playback after preload
+        setTimeout(() => playSentence(startIndex, allSentences), 100);
+      }, [rawText, showTitlePage, playSentence, loadFromCache, storyTitle]);
 
       useEffect(() => {
         if (storyToPlay) {
@@ -2231,9 +2282,9 @@
                       <Pencil size={22} />
                     </button>
 
-                    {/* Delete Button */}
-                    <button onClick={(e) => deleteBook(story, e)} className="p-3 bg-rose-500/20 rounded-2xl hover:bg-rose-600/40 text-rose-400 transition-all active:scale-95 shadow-lg border border-rose-500/20">
-                      <Trash2 size={22} />
+                    {/* Delete Button - Shows Lock icon for uncached stories as visual warning */}
+                    <button onClick={(e) => deleteBook(story, e)} className="p-3 bg-rose-500/20 rounded-2xl hover:bg-rose-600/40 text-rose-400 transition-all active:scale-95 shadow-lg border border-rose-500/20" title={isCached ? 'Delete cached audio' : 'Delete story permanently'}>
+                      {isCached ? <Trash2 size={22} /> : <Lock size={22} />}
                     </button>
                   </div>
                 )}
@@ -2266,10 +2317,68 @@
         const hasAnyCachedStories = simpleStories.length > 0 || userStories.length > 0;
         const hasAnyStories = allSimpleStories.length > 0 || allUserStories.length > 0;
 
+        // Processing Overlay Modal - blocks navigation during download
+        const processingStory = library.find(s => s.status === 'processing');
+        const ProcessingOverlay = () => {
+          if (!processingStory) return null;
+
+          const colors = {
+            indigo: 'bg-indigo-500',
+            emerald: 'bg-emerald-500',
+            amber: 'bg-amber-500',
+            rose: 'bg-rose-500',
+            purple: 'bg-purple-500',
+            cyan: 'bg-cyan-500'
+          };
+          const headerColor = colors[processingStory.color] || colors.indigo;
+
+          return (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+              <div className={`max-w-md w-full mx-6 rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 ${currentTheme.cardBg}`}>
+                {/* Colored Header */}
+                <div className={`p-8 ${headerColor}`}>
+                  <h2 className="text-3xl font-black text-white text-center leading-tight">{processingStory.title}</h2>
+                </div>
+
+                {/* Progress Content */}
+                <div className="p-8 space-y-6 bg-slate-900">
+                  <div className="text-center">
+                    <div className="text-6xl font-black text-white mb-2">{processingStory.progress}%</div>
+                    <div className="text-sm font-bold text-white/60 uppercase tracking-widest">Processing Story</div>
+                    {processingStory.progressText && (
+                      <div className="text-sm font-bold text-white/40 mt-2">{processingStory.progressText}</div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-white transition-all duration-300 ease-out"
+                      style={{ width: `${processingStory.progress}%` }}
+                    />
+                  </div>
+
+                  {/* Cancel Button */}
+                  <button
+                    onClick={(e) => cancelDownload(processingStory.id, e)}
+                    className="w-full py-4 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-lg transition-all active:scale-95 flex items-center justify-center gap-3"
+                  >
+                    <X size={24} />
+                    Cancel Download
+                  </button>
+
+                  <p className="text-center text-white/40 text-sm">Please wait while we prepare this story...</p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
         return (
           <div className={`min-h-screen ${currentTheme.pageBg} p-6 md:p-8 transition-colors duration-300`}>
             {renderBoundary()}
             {showSettings && SettingsModal()}
+            {ProcessingOverlay()}
 
             <header className="max-w-4xl mx-auto flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
@@ -2683,11 +2792,6 @@
           {
             isReading && (
               <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center p-6 pb-36 md:p-16 md:pb-44`}>
-                {isGenerating && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20 backdrop-blur-sm">
-                    <Loader2 className={`w-12 h-12 animate-spin ${currentTheme.text}`} />
-                  </div>
-                )}
                 <div className={`relative max-w-5xl mx-auto px-6 ${isTransitioning ? 'page-turn' : ''}`}>
                   <p className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
                 </div>
@@ -2697,7 +2801,7 @@
                       <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
                       <span className="text-sm font-semibold uppercase tracking-wider">Listening...</span>
                     </div>
-                  ) : !isGenerating && (
+                  ) : (
                     <div className={`flex items-center gap-2 opacity-40 animate-pulse ${currentTheme.text}`}>
                       <span className="text-sm font-semibold uppercase tracking-wider">Tap for next</span>
                     </div>
