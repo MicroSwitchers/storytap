@@ -845,7 +845,7 @@
 
       // New Accessibility & Option States
       const [showBoundary, setShowBoundary] = useState(prefs.showBoundary !== false); // Default true
-      const [boundaryColor, setBoundaryColor] = useState(prefs.boundaryColor || 'yellow');
+      const [boundaryColor, setBoundaryColor] = useState(prefs.boundaryColor || 'red');
       const [showTitlePage, setShowTitlePage] = useState(prefs.showTitlePage !== false); // Default true
       const [endAction, setEndAction] = useState(prefs.endAction || 'stop'); // stop, library, loop, next
 
@@ -1304,7 +1304,7 @@
       };
       const [soundCuesEnabled, setSoundCuesEnabled] = useState(prefs.soundCuesEnabled ?? true);
       const [vibrationEnabled, setVibrationEnabled] = useState(prefs.vibrationEnabled ?? true);
-      const [theme, setTheme] = useState(prefs.theme || 'default');
+      const [theme, setTheme] = useState(prefs.theme || 'buff');
       const [textSize, setTextSize] = useState(prefs.textSize || 'huge');
       const [allowSkip, setAllowSkip] = useState(prefs.allowSkip ?? false);
       const [showEditControls, setShowEditControls] = useState(false);
@@ -1329,6 +1329,8 @@
       const cacheRef = useRef({});
       const deviceInfoRef = useRef(getDeviceInfo());
       const initPromiseRef = useRef(null);
+      const textFitRef = useRef(null);
+      const [textScale, setTextScale] = useState(1);
 
       const { play: playCue } = useAudioCues(soundCuesEnabled, vibrationEnabled);
       const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
@@ -1769,6 +1771,29 @@
         handleTap();
       }, [handleTap]);
 
+      // Auto-fit text: shrink font until it fits within the reading area
+      // Runs whenever the current sentence changes
+      useEffect(() => {
+        setTextScale(1); // Reset scale for new sentence
+        // Use requestAnimationFrame to measure after render
+        const raf = requestAnimationFrame(() => {
+          const el = textFitRef.current;
+          if (!el) return;
+          const parent = el.parentElement;
+          if (!parent) return;
+
+          let scale = 1;
+          // Shrink in steps until text fits (scrollHeight <= parent height)
+          while (el.scrollHeight > parent.clientHeight && scale > 0.4) {
+            scale -= 0.05;
+            el.style.fontSize = `${scale}em`;
+          }
+          if (scale < 1) setTextScale(scale);
+          else el.style.fontSize = '';
+        });
+        return () => cancelAnimationFrame(raf);
+      }, [currentIndex, sentences, textSize]);
+
       // Clear in-memory cache when voice settings change
       // No automatic pre-generation - audio is ONLY cached via Download button or on-demand playback
       // Speed is locked to NATURAL_SPEED, so no need to clear cache when it changes
@@ -2170,7 +2195,7 @@
           blue: 'border-blue-500'
         };
         return (
-          <div className={`fixed inset-0 border-[12px] ${colors[boundaryColor] || 'border-yellow-400'} pointer-events-none z-[9999]`} style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)' }} />
+          <div className={`fixed inset-0 border-[12px] ${colors[boundaryColor] || 'border-red-500'} pointer-events-none z-[9999]`} style={{ boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)' }} />
         );
       };
 
@@ -2241,53 +2266,61 @@
               </div>
 
               {/* Dark Footer: Status & Actions */}
-              <div className="h-24 bg-slate-900 flex items-center justify-between px-6 text-white relative border-t-4 border-slate-900">
+              <div className="bg-slate-900 px-4 py-3 text-white relative border-t-4 border-slate-900">
+                <div className="flex items-center justify-between gap-2">
 
-                {/* Left: Status Icon / Main Action */}
-                <div className="flex items-center gap-3">
-                  {isProcessing ? (
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col text-white">
-                        <span className="font-black text-xl">{story.progress}%</span>
-                        <span className="text-xs font-bold opacity-80 uppercase tracking-widest">Loading</span>
+                  {/* Left: Status / Main Action */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {isProcessing ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col text-white">
+                          <span className="font-black text-lg">{story.progress}%</span>
+                          <span className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Loading</span>
+                        </div>
+                        <button
+                          onClick={(e) => cancelDownload(story.id, e)}
+                          className="p-2.5 rounded-xl bg-rose-500/30 hover:bg-rose-500/50 text-rose-300 transition-all active:scale-95 border border-rose-500/20"
+                          title="Cancel download"
+                        >
+                          <X size={18} />
+                        </button>
                       </div>
-                      <button
-                        onClick={(e) => cancelDownload(story.id, e)}
-                        className="p-3 rounded-2xl bg-rose-500/30 hover:bg-rose-500/50 text-rose-300 transition-all active:scale-95 border border-rose-500/20"
-                        title="Cancel download"
-                      >
-                        <X size={22} />
+                    ) : isCached ? (
+                      <div className="flex items-center gap-2" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }}>
+                        <div className="p-2.5 rounded-xl bg-white/10">
+                          <Play size={26} fill="currentColor" />
+                        </div>
+                        <span className="font-bold text-base hidden sm:block">Read</span>
+                      </div>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); preloadBook(story, e); }} className="flex items-center gap-2 px-4 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl text-white transition-all active:scale-95 border border-white/20 shadow-lg">
+                        <Download size={18} className="shrink-0" />
+                        <span className="font-bold text-sm leading-tight">Process Story</span>
                       </button>
-                    </div>
-                  ) : isCached ? (
-                    <div className="flex items-center gap-3" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }}>
-                      <div className={`p-3 rounded-2xl bg-white/10`}>
-                        <Play size={32} fill="currentColor" />
-                      </div>
-                      <span className={`font-bold text-lg hidden sm:block`}>Read</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 opacity-90 text-white">
-                      <Download size={24} className="shrink-0" />
-                      <span className="font-bold text-base sm:text-lg leading-tight">Process & Add This Story</span>
+                    )}
+                  </div>
+
+                  {/* Right: Edit Controls (Only if unlocked) */}
+                  {showEditControls && (
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {/* Edit Button */}
+                      <button onClick={(e) => editBook(story, e)} className="p-2.5 bg-white/10 rounded-xl hover:bg-white/20 text-white transition-all active:scale-95 border border-white/10" title="Edit story">
+                        <Pencil size={18} />
+                      </button>
+
+                      {/* Delete Button - Orange for cache delete, Red for permanent story delete */}
+                      {isCached ? (
+                        <button onClick={(e) => deleteBook(story, e)} className="p-2.5 bg-orange-500/20 rounded-xl hover:bg-orange-500/40 text-orange-400 transition-all active:scale-95 border border-orange-500/20" title="Delete cached audio">
+                          <Trash2 size={18} />
+                        </button>
+                      ) : (
+                        <button onClick={(e) => deleteBook(story, e)} className="p-2.5 bg-rose-500/25 rounded-xl hover:bg-rose-500/50 text-rose-400 transition-all active:scale-95 border border-rose-500/25" title="Delete story permanently">
+                          <Lock size={18} />
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
-
-                {/* Right: Edit Controls (Only if unlocked) */}
-                {showEditControls && (
-                  <div className="flex items-center gap-2">
-                    {/* Edit Button */}
-                    <button onClick={(e) => editBook(story, e)} className="p-3 bg-white/10 rounded-2xl hover:bg-white/20 text-white transition-all active:scale-95 shadow-lg border border-white/10">
-                      <Pencil size={22} />
-                    </button>
-
-                    {/* Delete Button - Shows Lock icon for uncached stories as visual warning */}
-                    <button onClick={(e) => deleteBook(story, e)} className="p-3 bg-rose-500/20 rounded-2xl hover:bg-rose-600/40 text-rose-400 transition-all active:scale-95 shadow-lg border border-rose-500/20" title={isCached ? 'Delete cached audio' : 'Delete story permanently'}>
-                      {isCached ? <Trash2 size={22} /> : <Lock size={22} />}
-                    </button>
-                  </div>
-                )}
               </div>
 
               {/* Progress Bar Overlay (Bottom edge) */}
@@ -2507,9 +2540,9 @@
                       <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-6 ${theme.includes('high-contrast') ? `border-2 ${currentTheme.border}` : 'bg-indigo-100'}`}>
                         <BookOpen size={48} className={theme.includes('high-contrast') ? currentTheme.textMain : 'text-indigo-400'} />
                       </div>
-                      <h3 className={`text-2xl font-bold mb-3 ${currentTheme.textMain}`}>No Stories Yet!</h3>
+                      <h3 className={`text-2xl font-bold mb-3 ${currentTheme.textMain}`}>No Stories Yet</h3>
                       <p className={`text-lg mb-6 max-w-sm ${currentTheme.textSub}`}>
-                        Ask a grown-up to unlock and download some stories for you.
+                        Unlock the app to add stories to your child's library.
                       </p>
                       <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm ${theme.includes('high-contrast') ? `border ${currentTheme.border} ${currentTheme.textSub}` : 'bg-slate-100 text-slate-500'}`}>
                         <Lock size={14} />
@@ -2717,7 +2750,7 @@
           {renderBoundary()}
           <audio ref={audioRef} onEnded={handleAudioEnded} preload="auto" hidden />
 
-          <div className="absolute top-6 left-6 z-[60]">
+          <div className="absolute top-5 left-5 z-[60]">
             <button
               onClick={handleExitClick}
               onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit}
@@ -2737,7 +2770,7 @@
 
           {/* Fullscreen toggle - now protected */}
           {!isStandalone() && (
-            <div className="absolute top-6 right-6 z-[60]">
+            <div className="absolute top-5 right-5 z-[60]">
               <button
                 onClick={handleFSClick}
                 onMouseDown={startHoldFS} onMouseUp={endHoldFS} onMouseLeave={endHoldFS}
@@ -2758,7 +2791,7 @@
           )}
 
           {isCover && (
-            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-8`}>
+            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10`}>
               {!theme.includes('high-contrast') && (
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   {/* Flat ambient background removed for accessibility */}
@@ -2791,11 +2824,11 @@
 
           {
             isReading && (
-              <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center p-6 pb-36 md:p-16 md:pb-44`}>
-                <div className={`relative max-w-5xl mx-auto px-6 ${isTransitioning ? 'page-turn' : ''}`}>
-                  <p className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
+              <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center px-8 pt-20 pb-40 md:px-16 md:pt-24 md:pb-48`}>
+                <div className={`relative max-w-5xl w-full mx-auto px-6 flex-1 flex items-center justify-center overflow-hidden ${isTransitioning ? 'page-turn' : ''}`}>
+                  <p ref={textFitRef} className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`} style={textScale < 1 ? { fontSize: `${textScale}em` } : undefined}>{sentences[currentIndex]}</p>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 p-8 flex flex-col items-center gap-6">
+                <div className="absolute bottom-0 left-0 right-0 px-8 pb-6 pt-4 flex flex-col items-center gap-4">
                   {isPlaying ? (
                     <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
                       <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
@@ -2820,7 +2853,7 @@
           {
             isEnd && (
               <div
-                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-8 z-50 cursor-pointer`}
+                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10 z-50 cursor-pointer`}
                 onClick={(e) => {
                   e.stopPropagation();
                   executeEndAction();
