@@ -1761,11 +1761,22 @@
         // Prevent all default browser behaviors (scrolling, zooming, pull-to-refresh, text selection)
         e.preventDefault();
 
-        // Debounce: touchstart + synthesized mousedown can double-fire
+        // Debounce: touchstart + click + pointerdown can multi-fire
         const now = Date.now();
-        if (now - lastInteractionRef.current < 180) return;
+        if (now - lastInteractionRef.current < 300) return;
         lastInteractionRef.current = now;
 
+        handleTap();
+      }, [handleTap]);
+
+      // Dedicated touch handler — fires on ANY contact, any finger count, any pressure
+      // touchstart fires instantly with zero delay (unlike click which has ~300ms delay on mobile)
+      const handleTouchInteraction = useCallback((e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const now = Date.now();
+        if (now - lastInteractionRef.current < 300) return;
+        lastInteractionRef.current = now;
         handleTap();
       }, [handleTap]);
 
@@ -2726,6 +2737,7 @@
 
       return (
         <div
+          onTouchStart={handleTouchInteraction}
           onClick={handleInteraction}
           onContextMenu={(e) => e.preventDefault()}
           onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); handleInteraction(e); } }}
@@ -2739,7 +2751,7 @@
           {renderBoundary()}
           <audio ref={audioRef} onEnded={handleAudioEnded} preload="auto" hidden />
 
-          <div className="absolute top-5 left-5 z-[60]">
+          <div className="absolute top-5 left-5 z-[60]" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
             <button
               onClick={handleExitClick}
               onMouseDown={startHoldExit} onMouseUp={endHoldExit} onMouseLeave={endHoldExit}
@@ -2759,7 +2771,7 @@
 
           {/* Fullscreen toggle - now protected */}
           {!isStandalone() && (
-            <div className="absolute top-5 right-5 z-[60]">
+            <div className="absolute top-5 right-5 z-[60]" onTouchStart={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={handleFSClick}
                 onMouseDown={startHoldFS} onMouseUp={endHoldFS} onMouseLeave={endHoldFS}
@@ -2843,8 +2855,19 @@
             isEnd && (
               <div
                 className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10 z-50 cursor-pointer`}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const now = Date.now();
+                  if (now - lastInteractionRef.current < 300) return;
+                  lastInteractionRef.current = now;
+                  executeEndAction();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
+                  const now = Date.now();
+                  if (now - lastInteractionRef.current < 300) return;
+                  lastInteractionRef.current = now;
                   executeEndAction();
                 }}
               >
