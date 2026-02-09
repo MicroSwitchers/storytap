@@ -2800,7 +2800,7 @@
           {
             isReading && (
               <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center px-8 pt-20 pb-40 md:px-16 md:pt-24 md:pb-48`}>
-                <div className={`relative max-w-5xl mx-auto px-6 overflow-hidden ${isTransitioning ? 'page-turn' : ''}`}>
+                <div className={`relative max-w-5xl mx-auto px-6 ${isTransitioning ? 'page-turn' : ''}`}>
                   <p className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
                 </div>
                 <div className="absolute bottom-0 left-0 right-0 px-8 pb-6 pt-4 flex flex-col items-center gap-4">
