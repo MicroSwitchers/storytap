@@ -123,20 +123,26 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Local assets: Stale-While-Revalidate
+  // Local assets: Network First (Freshness over speed)
+  // This ensures users always get the latest code/stories if online.
   e.respondWith(
-    caches.open(CACHE_NAME).then(async (cache) => {
-      const cachedResponse = await cache.match(e.request);
-
-      const networkFetch = fetch(e.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 &&
-          (networkResponse.type === 'basic' || networkResponse.type === 'cors')) {
-          cache.put(e.request, networkResponse.clone());
+    fetch(e.request)
+      .then(response => {
+        if (!response || response.status !== 200 || response.type !== 'basic') {
+          return response;
         }
-        return networkResponse;
-      }).catch(() => null);
 
-      return cachedResponse || networkFetch;
-    })
+        // Clone and update cache
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then(cache => {
+          cache.put(e.request, responseToCache);
+        });
+
+        return response;
+      })
+      .catch(() => {
+        // Network failed, fall back to cache
+        return caches.match(e.request);
+      })
   );
 });
