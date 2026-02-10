@@ -706,7 +706,7 @@
         // Haptic patterns tailored for each cue type
         const haptics = {
           tap: 25,
-          story_start: [40, 40, 80],
+          story_start: [80, 40, 80, 40, 150], // Matched to story_end for consistency
           story_end: [80, 40, 80, 40, 150],
           ready: [60, 30, 60],        // Strong double-pulse: "your turn!"
           advance: 20,
@@ -911,6 +911,14 @@
       const carouselBlobUrlRef = useRef(null);
       const childViewStoriesRef = useRef([]);
       const [isFullscreenMode, setIsFullscreenMode] = useState(isFullscreen());
+
+      // Window height tracking for responsive landscape layout
+      const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+      useEffect(() => {
+        const handleResize = () => setWindowHeight(window.innerHeight);
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, []);
       // Library & Processing Queue
       const [library, setLibrary] = useState(() => {
         try {
@@ -1361,9 +1369,16 @@
       const cacheRef = useRef({});
       const deviceInfoRef = useRef(getDeviceInfo());
       const initPromiseRef = useRef(null);
+      const libraryBlockRef = useRef(0); // Timestamp to block library clicks after exit
 
       const { play: playCue } = useAudioCues(soundCuesEnabled, vibrationEnabled);
       const currentTheme = THEMES.find(t => t.id === theme) || THEMES[0];
+
+      // Responsive card sizing
+      const isShortScreen = windowHeight < 600;
+      const cardWidth = isShortScreen ? 160 : 260;
+      const cardStride = cardWidth + 32; // Gap is always 32px (gap-8)
+      const centerOffset = cardWidth / 2;
 
       const getTextSizeClass = () => {
         if (textSize === 'huge') return 'text-4xl md:text-6xl lg:text-7xl';
@@ -1938,6 +1953,7 @@
         window.speechSynthesis?.cancel();
         setStoryToPlay(null);
         setMode('library');
+        libraryBlockRef.current = Date.now() + 500; // Block clicks for 500ms to prevent ghost clicks
         setCurrentIndex(-1);
         setIsPlaying(false);
         setIsGenerating(false);
@@ -2700,6 +2716,7 @@
                           setCarouselIndex(prev => Math.max(prev - 1, 0));
                         }
                       } else if (Math.abs(deltaX) < 15 && Math.abs(deltaY) < 15 && elapsed < 300) {
+                        if (Date.now() < libraryBlockRef.current) return;
                         const story = childViewStories[carouselIndex];
                         if (story && story.status === 'cached') {
                           loadBookForPlay(story);
@@ -2707,6 +2724,7 @@
                       }
                     }}
                     onClick={() => {
+                      if (Date.now() < libraryBlockRef.current) return;
                       const story = childViewStories[carouselIndex];
                       if (story && story.status === 'cached') {
                         loadBookForPlay(story);
@@ -2740,7 +2758,7 @@
                           left: '50%',
                           transformOrigin: 'left center',
                           transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                          transform: `translateX(calc(-130px - ${carouselIndex * 292}px))`
+                          transform: `translateX(calc(-${centerOffset}px - ${carouselIndex * cardStride}px))`
                         }}
                       >
                         {childViewStories.map((story, idx) => {
@@ -2764,7 +2782,7 @@
                               aria-label={story.title}
                               className={`flex-shrink-0 ${isSelected ? 'coverflow-selected' : ''}`}
                               style={{
-                                width: '260px',
+                                width: `${cardWidth}px`,
                                 aspectRatio: '3/4',
                                 border: '4px solid #0f172a',
                                 outline: isSelected ? `10px solid ${glowHex}` : 'none',
@@ -2775,14 +2793,14 @@
                               }}
                             >
                               <div className={`h-3/4 p-6 flex items-center justify-center text-center ${headerColor}`}>
-                                <h3 className="text-3xl font-extrabold leading-tight text-black line-clamp-4">
+                                <h3 className={`font-extrabold leading-tight text-black line-clamp-4 ${isShortScreen ? 'text-xl' : 'text-3xl'}`}>
                                   {story.title}
                                 </h3>
                               </div>
                               <div className="h-1/4 bg-slate-900 flex items-center justify-center border-t-4 border-slate-900">
                                 <div className="flex items-center gap-2" style={{ color: isSelected ? glowHex : '#94a3b8' }}>
-                                  <Play size={isSelected ? 32 : 24} fill="currentColor" />
-                                  {isSelected && <span className="font-bold text-lg text-white">Tap to Read</span>}
+                                  <Play size={isSelected ? (isShortScreen ? 24 : 32) : 24} fill="currentColor" />
+                                  {isSelected && <span className={`font-bold text-white ${isShortScreen ? 'text-base' : 'text-lg'}`}>Tap to Read</span>}
                                 </div>
                               </div>
                             </div>
@@ -3126,7 +3144,7 @@
           {
             isEnd && (
               <div
-                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10 z-50 cursor-pointer`}
+                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-4 md:p-10 z-50 cursor-pointer overflow-hidden`}
                 onTouchStart={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -3146,7 +3164,7 @@
                 {!theme.includes('high-contrast') && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none"></div>
                 )}
-                <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                <div className="flex flex-col items-center justify-between h-full max-h-[min(800px,90vh)] py-2 md:py-4 w-full">
                   <div className="flex-1 flex flex-col items-center justify-center w-full">
                     {/* Check Icon Card */}
                     <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
