@@ -3083,33 +3083,31 @@
           )}
 
           {isCover && (
-            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center py-6 landscape:py-2 px-6 z-40 overflow-hidden`}>
+            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10`}>
               {!theme.includes('high-contrast') && (
-                <div className="absolute inset-0 overflow-hidden pointer-events-none"></div>
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  {/* Flat ambient background removed for accessibility */}
+                </div>
               )}
+              <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                <div className="flex-1 flex flex-col items-center justify-center w-full">
+                  <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                    <BookOpen size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                  </div>
+                  <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl`}>{storyTitle}</h1>
+                  <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
 
-              <div className="flex flex-col items-center justify-center h-full w-full max-w-4xl mx-auto gap-4 md:gap-8 landscape:gap-1">
-                {/* Book Icon - Shrinks or hides on very short screens */}
-                <div className={`shrink-0 w-16 h-20 md:w-24 md:h-32 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'} hidden sm:flex landscape:hidden md:landscape:flex`}>
-                  <BookOpen size={40} className="w-8 h-8 md:w-12 md:h-12" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
-                </div>
-
-                <div className="flex flex-col items-center text-center shrink min-h-0 justify-center">
-                  <h1 className={`text-2xl md:text-5xl lg:text-6xl font-black font-serif text-center leading-tight tracking-tight px-4 fade-in-up ${currentTheme.coverText} line-clamp-3 md:line-clamp-4`}>{storyTitle}</h1>
-                  <p className={`text-base md:text-xl font-bold mt-2 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
-                </div>
-
-                {/* Main Play Button */}
-                <div className="relative shrink-0 flex items-center justify-center py-2">
-                  <div className={`absolute inset-0 rounded-full pulse-ring ${currentTheme.pulse}`} style={{ margin: '-10px' }} />
-                  <div className={`w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center border-4 backdrop-blur-sm relative z-10 ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                    <Volume2 size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                  <div className="relative mb-8">
+                    <div className={`absolute inset-0 w-20 h-20 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                    <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                      <Volume2 size={32} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center shrink-0 justify-end">
-                  <span className={`font-black text-sm md:text-xl uppercase tracking-widest mb-1 ${currentTheme.coverSub}`}>Tap Anywhere</span>
-                  <span className={`text-xs md:text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-0.5`}>Title Page</span>
+                <div className="flex flex-col items-center pb-8">
+                  <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>Tap Anywhere</span>
+                  <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-1`}>Title Page</span>
                 </div>
               </div>
             </div>
@@ -3146,7 +3144,7 @@
           {
             isEnd && (
               <div
-                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center py-6 landscape:py-2 px-6 z-50 cursor-pointer overflow-hidden`}
+                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10 z-50 cursor-pointer`}
                 onTouchStart={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -3166,38 +3164,37 @@
                 {!theme.includes('high-contrast') && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none"></div>
                 )}
+                <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                  <div className="flex-1 flex flex-col items-center justify-center w-full">
+                    {/* Check Icon Card */}
+                    <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                      <Check size={40} strokeWidth={3} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                    </div>
 
-                <div className="flex flex-col items-center justify-center h-full w-full max-w-4xl mx-auto gap-4 md:gap-8 landscape:gap-1">
-                  {/* Check Icon - Shrinks or hides on very short screens */}
-                  <div className={`shrink-0 w-16 h-20 md:w-24 md:h-32 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'} hidden sm:flex landscape:hidden md:landscape:flex`}>
-                    <Check size={40} strokeWidth={3} className="w-8 h-8 md:w-12 md:h-12" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
-                  </div>
+                    <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText}`}>The End</h1>
+                    <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>What a great story!</p>
 
-                  <div className="flex flex-col items-center text-center shrink min-h-0 justify-center">
-                    <h1 className={`text-3xl md:text-5xl lg:text-6xl font-black font-serif text-center leading-tight tracking-tight fade-in-up ${currentTheme.coverText}`}>The End</h1>
-                    <p className={`text-base md:text-xl font-bold mt-2 fade-in-up ${currentTheme.coverSub}`}>What a great story!</p>
-                  </div>
-
-                  {/* Action Icon (Centerpiece) */}
-                  {endAction !== 'stop' && (
-                    <div className="relative shrink-0 flex items-center justify-center py-2">
-                      <div className={`absolute inset-0 rounded-full pulse-ring ${currentTheme.pulse}`} style={{ margin: '-10px' }} />
-                      <div className={`w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl relative z-10 ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                        {endAction === 'library' && <ArrowLeft size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
-                        {endAction === 'loop' && <RefreshCw size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
-                        {endAction === 'random' && <Sparkles size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                    {/* Action Icon (Centerpiece) */}
+                    {endAction !== 'stop' && (
+                      <div className="relative mb-8">
+                        <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                        <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                          {endAction === 'library' && <ArrowLeft size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'loop' && <RefreshCw size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'random' && <Sparkles size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {endAction === 'stop' && (
-                    <div className={`shrink-0 w-16 h-16 md:w-24 md:h-24 rounded-full flex items-center justify-center border-4 opacity-50 ${currentTheme.coverBorder}`}>
-                      <StopCircle size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
-                    </div>
-                  )}
+                    {endAction === 'stop' && (
+                      <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 opacity-50 ${currentTheme.coverBorder}`}>
+                        <StopCircle size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                      </div>
+                    )}
+                  </div>
 
-                  <div className="flex flex-col items-center opacity-80 shrink-0 justify-end">
-                    <span className={`font-black text-sm md:text-xl uppercase tracking-widest mb-1 ${currentTheme.coverSub}`}>
+                  <div className="flex flex-col items-center pb-8 opacity-80">
+                    <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>
                       {endAction === 'library' && 'Tap for Library'}
                       {endAction === 'loop' && 'Tap to Read Again'}
                       {endAction === 'random' && 'Tap for Surprise'}
