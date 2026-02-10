@@ -1,4 +1,4 @@
-const CACHE_NAME = 'storytap-v4.12';
+const CACHE_NAME = 'storytap-v1.0.0';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -99,9 +99,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // CDN resources (esm.sh, unpkg, etc): Cache first with revalidation
+  // CDN resources (esm.sh, unpkg, huggingface, etc): Cache first with revalidation
   if (url.hostname.includes('esm.sh') ||
     url.hostname.includes('unpkg.com') ||
+    url.hostname.includes('huggingface.co') ||
     url.hostname.includes('cdn.')) {
     e.respondWith(
       caches.open(CACHE_NAME).then(async (cache) => {

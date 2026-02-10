@@ -24,8 +24,10 @@
   <!-- Preconnect for faster font loading -->
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+  <link rel="dns-prefetch" href="https://huggingface.co">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://huggingface.co" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Crimson+Pro:wght@400;500;600&display=swap"
     rel="stylesheet">
@@ -234,7 +236,7 @@
       background-color: rgba(255, 255, 255, 0.6);
     }
   </style>
-  <script src="quickstories.js?v=4"></script>
+  <script src="quickstories.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
@@ -2519,23 +2521,21 @@
                 )}
               </div>
               <div className="flex items-center gap-2">
-                {!showEditControls && (
-                  <button
-                    onClick={handleLockClick}
-                    onMouseDown={startHoldLock} onMouseUp={endHoldLock} onMouseLeave={endHoldLock}
-                    onTouchStart={startHoldLock} onTouchEnd={endHoldLock} onTouchCancel={endHoldLock}
-                    className={`relative p-3 rounded-2xl shadow-md transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub} ${isHoldingLock ? `ring-4 ring-offset-4 ring-${currentTheme.highlight}-400 scale-110 z-50` : ''}`}
-                    title={unlockAction.startsWith('hold') ? "Hold to unlock" : "Tap 3 times to unlock"}
-                  >
-                    {isHoldingLock && (
-                      <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
-                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
-                        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (lockHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
-                      </svg>
-                    )}
-                    <Lock size={22} />
-                  </button>
-                )}
+                <button
+                  onClick={showEditControls ? () => { setShowEditControls(false); playCue('tap'); } : handleLockClick}
+                  onMouseDown={!showEditControls ? startHoldLock : undefined} onMouseUp={!showEditControls ? endHoldLock : undefined} onMouseLeave={!showEditControls ? endHoldLock : undefined}
+                  onTouchStart={!showEditControls ? startHoldLock : undefined} onTouchEnd={!showEditControls ? endHoldLock : undefined} onTouchCancel={!showEditControls ? endHoldLock : undefined}
+                  className={`relative p-3 rounded-2xl shadow-md transition-all border ${currentTheme.cardBg} ${currentTheme.border} ${currentTheme.textSub} ${isHoldingLock ? `ring-4 ring-offset-4 ring-${currentTheme.highlight}-400 scale-110 z-50` : ''}`}
+                  title={showEditControls ? "Lock Library" : (unlockAction.startsWith('hold') ? "Hold to unlock" : "Tap 3 times to unlock")}
+                >
+                  {isHoldingLock && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 48 48">
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeOpacity="0.15" />
+                      <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="126" strokeDashoffset={126 - (lockHoldProgress / 100) * 126} strokeLinecap="round" style={{ transform: 'rotate(-90deg)', transformOrigin: 'center' }} />
+                    </svg>
+                  )}
+                  {showEditControls ? <Unlock size={22} className={currentTheme.textMain} /> : <Lock size={22} />}
+                </button>
                 <button
                   onClick={handleSettingsClick}
                   onMouseDown={startHoldSettings} onMouseUp={endHoldSettings} onMouseLeave={endHoldSettings}
@@ -2562,8 +2562,8 @@
             {/* End of Story Action — visible in parent/unlocked library */}
             {showEditControls && (
               <div className="max-w-4xl mx-auto mb-4">
-                <div className={`flex items-center justify-center gap-2 p-3 rounded-2xl ${currentTheme.cardBg} border ${currentTheme.border}`}>
-                  <span className={`text-xs font-bold uppercase tracking-wider mr-2 ${currentTheme.textSub}`}>After Story:</span>
+                <div className={`flex flex-wrap items-center justify-center gap-2 p-3 rounded-2xl ${currentTheme.cardBg} border ${currentTheme.border}`}>
+                  <span className={`w-full sm:w-auto text-center text-xs font-bold uppercase tracking-wider mb-2 sm:mb-0 sm:mr-2 ${currentTheme.textSub}`}>After Story:</span>
                   {[
                     { id: 'stop', label: 'Stop', icon: StopCircle },
                     { id: 'library', label: 'Library', icon: ArrowLeft },
@@ -2576,10 +2576,10 @@
                       <button
                         key={opt.id}
                         onClick={() => setEndAction(opt.id)}
-                        className={`flex items-center gap-2 px-4 py-3 rounded-xl transition-all border-2 ${active ? `${currentTheme.highlightBorder} ${currentTheme.highlightBgLight} ${currentTheme.textMain} shadow-sm` : `${currentTheme.border} ${currentTheme.textSub} opacity-70`}`}
+                        className={`flex items-center justify-center gap-2 px-3 py-2 sm:px-4 sm:py-3 rounded-xl transition-all border-2 flex-grow sm:flex-grow-0 ${active ? `${currentTheme.highlightBorder} ${currentTheme.highlightBgLight} ${currentTheme.textMain} shadow-sm` : `${currentTheme.border} ${currentTheme.textSub} opacity-70`}`}
                       >
                         <Icon size={18} />
-                        <span className="font-bold text-sm">{opt.label}</span>
+                        <span className="font-bold text-sm whitespace-nowrap">{opt.label}</span>
                       </button>
                     );
                   })}

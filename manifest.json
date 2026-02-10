@@ -10,7 +10,7 @@
     "standalone",
     "minimal-ui"
   ],
-  "background_color": "#1e1b4b",
+  "background_color": "#0f172a",
   "theme_color": "#6366f1",
   "orientation": "any",
   "scope": "./",
