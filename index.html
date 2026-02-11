@@ -237,6 +237,8 @@
     }
   </style>
   <script src="quickstories.js"></script>
+  <!-- Polyfill for older browsers needing modern JS support -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.37.1/minified.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 
@@ -452,12 +454,12 @@
     const getDeviceInfo = () => {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
       const hasWebGPU = !!navigator.gpu;
       const memory = navigator.deviceMemory || 4; // Default to 4GB if not available
       const cores = navigator.hardwareConcurrency || 4;
 
-      return { isMobile, isSafari, isIOS, hasWebGPU, memory, cores };
+      return { isMobile: isMobile || isIOS, isSafari, isIOS, hasWebGPU, memory, cores };
     };
 
     // =============================================
@@ -1411,7 +1413,9 @@
       const ttsRef = useRef(null);
       const audioRef = useRef(null);
       const cacheRef = useRef({});
+      // Optimized device info check (uses useRef to stay consistent)
       const deviceInfoRef = useRef(getDeviceInfo());
+      const device = deviceInfoRef.current; // Shortcut for inline use in JSX
       const initPromiseRef = useRef(null);
       const libraryBlockRef = useRef(0); // Timestamp to block library clicks after exit
 
@@ -3152,15 +3156,15 @@
               )}
               <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-2 md:py-4">
                 <div className="flex-1 flex flex-col items-center justify-center w-full">
-                  <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                  <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark && !deviceInfoRef.current.isMobile ? 'glow' : 'shadow-lg'} ${!deviceInfoRef.current.isMobile ? 'backdrop-blur-sm' : ''} mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
                     <BookOpen size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                   </div>
                   <h1 className={`text-3xl md:text-5xl landscape:text-2xl font-black font-serif text-center mb-2 md:mb-4 landscape:mb-1 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl px-4`}>{storyTitle}</h1>
                   <p className={`text-lg md:text-xl landscape:text-base font-bold mb-4 md:mb-8 landscape:mb-2 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
 
                   <div className="relative mb-4 md:mb-8 landscape:mb-2">
-                    <div className={`absolute inset-0 w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full pulse-ring ${currentTheme.pulse}`} />
-                    <div className={`w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                    <div className={`absolute inset-0 w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full ${!deviceInfoRef.current.isMobile ? 'pulse-ring' : ''} ${currentTheme.pulse}`} />
+                    <div className={`w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full flex items-center justify-center border-4 ${!deviceInfoRef.current.isMobile ? 'backdrop-blur-sm' : ''} ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
                       <Volume2 size={24} className="w-6 h-6 md:w-8 md:h-8" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
                   </div>
@@ -3228,7 +3232,7 @@
                 <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-2 md:py-4">
                   <div className="flex-1 flex flex-col items-center justify-center w-full">
                     {/* Check Icon Card */}
-                    <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                    <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark && !deviceInfoRef.current.isMobile ? 'glow' : 'shadow-lg'} ${!deviceInfoRef.current.isMobile ? 'backdrop-blur-sm' : ''} mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
                       <Check size={32} strokeWidth={3} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
 
@@ -3238,8 +3242,8 @@
                     {/* Action Icon (Centerpiece) */}
                     {endAction !== 'stop' && (
                       <div className="relative mb-4 md:mb-8 landscape:mb-2">
-                        <div className={`absolute inset-0 w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full pulse-ring ${currentTheme.pulse}`} />
-                        <div className={`w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                        <div className={`absolute inset-0 w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full ${!deviceInfoRef.current.isMobile ? 'pulse-ring' : ''} ${currentTheme.pulse}`} />
+                        <div className={`w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full flex items-center justify-center border-4 ${!deviceInfoRef.current.isMobile ? 'backdrop-blur-sm' : ''} shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
                           {endAction === 'library' && <ArrowLeft size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
                           {endAction === 'loop' && <RefreshCw size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
                           {endAction === 'random' && <Sparkles size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
