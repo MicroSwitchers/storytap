@@ -241,14 +241,36 @@
 </head>
 
 <body>
-  <div id="root"></div>
+  <div id="root">
+    <!-- Startup splash (replaced when React mounts) -->
+    <div
+      style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0f172a;color:white;font-family:system-ui,sans-serif;gap:24px">
+      <div
+        style="width:64px;height:64px;border-radius:16px;background:#4f46e5;display:flex;align-items:center;justify-content:center">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+          <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+        </svg>
+      </div>
+      <div style="font-size:24px;font-weight:800;letter-spacing:-0.5px">StoryTap</div>
+      <div
+        style="width:48px;height:48px;border:4px solid rgba(255,255,255,0.15);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite">
+      </div>
+      <style>
+        @keyframes spin {
+          to {
+            transform: rotate(360deg)
+          }
+        }
+      </style>
+    </div>
+  </div>
 
   <script type="text/babel" data-type="module">
     import React, { useState, useEffect, useRef, useCallback, useMemo } from 'https://esm.sh/react@18.3.1';
     import { createRoot } from 'https://esm.sh/react-dom@18.3.1/client';
     import { BookOpen, Play, Volume2, VolumeX, Sparkles, ArrowLeft, Loader2, Check, Star, Heart, Moon, Sun, Wand2, Settings, X, Eye, Vibrate, Palette, AlertTriangle, Trash2, Plus, Download, Pencil, SkipForward, Lock, Unlock, Layout, Type, RefreshCw, StopCircle, PenTool, Maximize2, Minimize2, Database } from 'https://esm.sh/lucide-react?deps=react@18.3.1,react-dom@18.3.1';
-    import { KokoroTTS } from 'https://esm.sh/kokoro-js';
-
+    // KokoroTTS is loaded lazily on first use (dynamic import) to avoid blocking app startup
+    let KokoroTTS = null;
     const MODEL_ID = "onnx-community/Kokoro-82M-v1.0-ONNX";
 
     // =============================================
@@ -420,7 +442,9 @@
       if (window.requestIdleCallback) {
         window.requestIdleCallback(r, { timeout });
       } else {
-        setTimeout(r, 16);
+        // Safari/iOS: no requestIdleCallback — use the requested timeout directly
+        // (previously hardcoded to 16ms which starved iOS of GC time)
+        setTimeout(r, Math.max(timeout, 16));
       }
     });
 
@@ -520,18 +544,25 @@
     const setCachedAudio = async (key, blob) => {
       try {
         const db = await openDB();
-        return new Promise((resolve) => {
+
+        // Write the audio in a short, focused transaction (iOS-safe)
+        await new Promise((resolve, reject) => {
           const tx = db.transaction(STORE_NAME, 'readwrite');
           const store = tx.objectStore(STORE_NAME);
-
           store.put({ key, blob, ts: Date.now() });
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => reject(tx.error);
+          tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+        });
 
-          // Periodic cleanup (simple check)
-          const countReq = store.count();
+        // Periodic cleanup in a SEPARATE transaction (prevents iOS timeout)
+        try {
+          const tx2 = db.transaction(STORE_NAME, 'readwrite');
+          const store2 = tx2.objectStore(STORE_NAME);
+          const countReq = store2.count();
           countReq.onsuccess = () => {
             if (countReq.result > MAX_ITEMS) {
-              // Delete oldest
-              const idx = store.index('ts');
+              const idx = store2.index('ts');
               const cursorReq = idx.openCursor(); // Ascending = oldest first
               let deleted = 0;
               cursorReq.onsuccess = (e) => {
@@ -544,11 +575,16 @@
               };
             }
           };
+        } catch (cleanupErr) {
+          // Cleanup failure is non-critical — audio was already saved
+          console.warn('Cache cleanup error:', cleanupErr);
+        }
 
-          tx.oncomplete = () => resolve(true);
-          tx.onerror = () => resolve(false);
-        });
-      } catch (e) { return false; }
+        return true;
+      } catch (e) {
+        console.warn('setCachedAudio error:', e?.name, e?.message);
+        return false;
+      }
     };
 
     // Create a hash key for caching (text + voice + speed + version)
@@ -863,7 +899,7 @@
       const [isTransitioning, setIsTransitioning] = useState(false);
 
       // New Accessibility & Option States
-      const [showBoundary, setShowBoundary] = useState(prefs.showBoundary !== false); // Default true
+      const [showBoundary, setShowBoundary] = useState(prefs.showBoundary === true); // Default false
       const [boundaryColor, setBoundaryColor] = useState(prefs.boundaryColor || 'red');
       const [showTitlePage, setShowTitlePage] = useState(prefs.showTitlePage !== false); // Default true
       const [endAction, setEndAction] = useState(prefs.endAction || 'stop'); // stop, library, loop, next
@@ -1077,12 +1113,14 @@
         }
 
         // Mobile-aware batching: smaller batches + longer delays on mobile
-        // CRITICAL: Aggressive delays prevent Android "App Not Responding" dialog
+        // CRITICAL: Aggressive delays prevent ANR on Android and crashes on iOS
         const device = deviceInfoRef.current;
         const isMobile = device.isMobile;
+        const isIOS = device.isIOS;
+        // iOS WebKit has strict memory limits and no requestIdleCallback — needs much longer pauses
         const BATCH_SIZE = isMobile ? 1 : 3; // Process 1 item at a time on mobile
-        const BATCH_DELAY = isMobile ? 800 : 200; // Much longer pause on mobile (800ms)
-        const ITEM_DELAY = isMobile ? 300 : 50; // Longer between items on mobile
+        const BATCH_DELAY = isIOS ? 1500 : (isMobile ? 800 : 200);
+        const ITEM_DELAY = isIOS ? 600 : (isMobile ? 300 : 50);
 
         let completed = 0;
         let consecutiveErrors = 0;
@@ -1109,6 +1147,11 @@
           } catch (e) {
             console.warn('Error caching item:', e);
             consecutiveErrors++;
+
+            // On iOS, long pause after error to let WebKit recover memory
+            if (isIOS) {
+              await new Promise(r => setTimeout(r, 2000));
+            }
 
             // Bail out if device is struggling (too many failures in a row)
             if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
@@ -1139,12 +1182,13 @@
 
           // Longer pause every BATCH_SIZE items for UI responsiveness
           // On mobile, aggressive yielding prevents ANR dialog
+          // On iOS, extra-long pauses prevent WebKit memory pressure crashes
           if (i % BATCH_SIZE === BATCH_SIZE - 1) {
             await new Promise(r => setTimeout(r, BATCH_DELAY));
-            await yieldIdle(isMobile ? 500 : 100); // Much longer idle on mobile
+            await yieldIdle(isIOS ? 800 : (isMobile ? 500 : 100));
           } else {
             await new Promise(r => setTimeout(r, ITEM_DELAY));
-            await yieldIdle(isMobile ? 200 : 50); // Add idle in else branch too
+            await yieldIdle(isIOS ? 400 : (isMobile ? 200 : 50));
           }
         }
 
@@ -1400,6 +1444,20 @@
           setModelProgress(0);
           setModelStatus('Initializing...');
 
+          // Lazy-load KokoroTTS on first use (avoids blocking app startup)
+          if (!KokoroTTS) {
+            setModelStatus('Loading speech engine...');
+            try {
+              const module = await import('https://esm.sh/kokoro-js');
+              KokoroTTS = module.KokoroTTS;
+            } catch (importErr) {
+              console.error('Failed to load Kokoro TTS library:', importErr);
+              setLoadError('Could not load the speech engine. Check your internet connection and try again.');
+              initPromiseRef.current = null;
+              return false;
+            }
+          }
+
           try {
             await yieldToBrowser();
 
@@ -1545,15 +1603,20 @@
         }
 
         try {
-          // Longer yield before generation to prevent ANR on mobile
+          // Longer yield before generation to prevent ANR on mobile / crash on iOS
           const device = deviceInfoRef.current;
-          await yieldIdle(device?.isMobile ? 100 : 10);
+          await yieldIdle(device?.isIOS ? 300 : (device?.isMobile ? 100 : 10));
 
           const audio = await ttsRef.current.generate(cleanText, { voice: useVoice, speed: useSpeed });
           const resultBlob = audio.toBlob();
 
-          // Save to persistent cache (don't await, do in background)
-          setCachedAudio(cacheKey, resultBlob).catch(() => { });
+          // Save to persistent cache
+          // On iOS, await the write to prevent concurrent IndexedDB transactions crashing
+          if (device?.isIOS) {
+            await setCachedAudio(cacheKey, resultBlob).catch(() => { });
+          } else {
+            setCachedAudio(cacheKey, resultBlob).catch(() => { });
+          }
 
           return URL.createObjectURL(resultBlob);
 
@@ -2755,11 +2818,9 @@
                       <div
                         className="flex items-center gap-8 flex-nowrap"
                         style={{
-                          position: 'relative',
-                          left: '50%',
-                          transformOrigin: 'left center',
+                          marginLeft: `calc(50% - ${centerOffset}px)`,
                           transition: 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
-                          transform: `translateX(calc(-${centerOffset}px - ${carouselIndex * cardStride}px))`
+                          transform: `translateX(-${carouselIndex * cardStride}px)`
                         }}
                       >
                         {childViewStories.map((story, idx) => {
@@ -3083,31 +3144,31 @@
           )}
 
           {isCover && (
-            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10`}>
+            <div className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-6 landscape:py-4 md:p-10`}>
               {!theme.includes('high-contrast') && (
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
                   {/* Flat ambient background removed for accessibility */}
                 </div>
               )}
-              <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+              <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-2 md:py-4">
                 <div className="flex-1 flex flex-col items-center justify-center w-full">
-                  <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
-                    <BookOpen size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                  <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                    <BookOpen size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                   </div>
-                  <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl`}>{storyTitle}</h1>
-                  <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
+                  <h1 className={`text-3xl md:text-5xl landscape:text-2xl font-black font-serif text-center mb-2 md:mb-4 landscape:mb-1 leading-tight tracking-tight fade-in-up ${currentTheme.coverText} max-w-4xl px-4`}>{storyTitle}</h1>
+                  <p className={`text-lg md:text-xl landscape:text-base font-bold mb-4 md:mb-8 landscape:mb-2 fade-in-up ${currentTheme.coverSub}`}>A Story for You</p>
 
-                  <div className="relative mb-8">
-                    <div className={`absolute inset-0 w-20 h-20 rounded-full pulse-ring ${currentTheme.pulse}`} />
-                    <div className={`w-20 h-20 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                      <Volume2 size={32} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                  <div className="relative mb-4 md:mb-8 landscape:mb-2">
+                    <div className={`absolute inset-0 w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                    <div className={`w-14 h-14 md:w-20 md:h-20 landscape:w-12 landscape:h-12 rounded-full flex items-center justify-center border-4 backdrop-blur-sm ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                      <Volume2 size={24} className="w-6 h-6 md:w-8 md:h-8" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col items-center pb-8">
-                  <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>Tap Anywhere</span>
-                  <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-1`}>Title Page</span>
+                <div className="flex flex-col items-center pb-4 md:pb-8 landscape:pb-1">
+                  <span className={`font-black text-sm md:text-xl uppercase tracking-widest mb-1 md:mb-2 ${currentTheme.coverSub}`}>Tap Anywhere</span>
+                  <span className={`text-xs md:text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-0.5 md:pb-1`}>Title Page</span>
                 </div>
               </div>
             </div>
@@ -3115,11 +3176,11 @@
 
           {
             isReading && (
-              <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center px-8 pt-20 pb-40 md:px-16 md:pt-24 md:pb-48`}>
+              <div className={`absolute inset-0 ${currentTheme.bg} flex flex-col items-center justify-center px-8 pt-20 pb-40 landscape:pt-12 landscape:pb-32 md:px-16 md:pt-24 md:pb-48`}>
                 <div className={`relative max-w-5xl mx-auto px-6 ${isTransitioning ? 'page-turn' : ''}`}>
                   <p className={`${getTextSizeClass()} font-serif font-bold text-center leading-loose tracking-wide ${currentTheme.text}`}>{sentences[currentIndex]}</p>
                 </div>
-                <div className="absolute bottom-0 left-0 right-0 px-8 pb-6 pt-4 flex flex-col items-center gap-4">
+                <div className="absolute bottom-0 left-0 right-0 px-8 pb-6 pt-4 landscape:pb-2 landscape:pt-2 flex flex-col items-center gap-4 landscape:gap-2">
                   {isPlaying ? (
                     <div className={`flex items-center gap-3 ${currentTheme.text} opacity-60`}>
                       <div className="flex gap-1">{[...Array(4)].map((_, i) => (<div key={i} className={`w-1 rounded-full animate-pulse ${currentTheme.progress}`} style={{ height: `${12 + Math.random() * 12}px`, animationDelay: `${i * 0.1}s` }} />))}</div>
@@ -3134,7 +3195,7 @@
                     <div className={`h-8 rounded-full overflow-hidden border-4 border-current ${currentTheme.readingDark ? 'bg-white/20' : 'bg-black/10'} shadow-inner ${currentTheme.text}`}>
                       <div className={`h-full transition-all duration-500`} style={{ width: `${progress}%`, backgroundColor: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
-                    <p className={`text-center text-lg mt-3 font-black uppercase tracking-widest ${currentTheme.text}`}>Page {currentIndex + 1}</p>
+                    <p className={`text-center text-lg mt-3 landscape:mt-1 font-black uppercase tracking-widest ${currentTheme.text}`}>Page {currentIndex + 1}</p>
                   </div>
                 </div>
               </div>
@@ -3144,7 +3205,7 @@
           {
             isEnd && (
               <div
-                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-10 z-50 cursor-pointer`}
+                className={`absolute inset-0 ${currentTheme.coverBg} flex flex-col items-center justify-center p-6 landscape:py-4 md:p-10 z-50 cursor-pointer`}
                 onTouchStart={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -3164,43 +3225,43 @@
                 {!theme.includes('high-contrast') && (
                   <div className="absolute inset-0 overflow-hidden pointer-events-none"></div>
                 )}
-                <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-4">
+                <div className="flex flex-col items-center justify-between h-full max-h-[800px] py-2 md:py-4">
                   <div className="flex-1 flex flex-col items-center justify-center w-full">
                     {/* Check Icon Card */}
-                    <div className={`w-20 h-28 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-6 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
-                      <Check size={40} strokeWidth={3} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                    <div className={`w-16 h-24 md:w-20 md:h-28 landscape:w-14 landscape:h-18 rounded-xl flex items-center justify-center border-4 ${currentTheme.readingDark ? 'glow' : 'shadow-lg'} backdrop-blur-sm mb-4 md:mb-6 landscape:mb-2 ${currentTheme.coverBorder} ${currentTheme.readingDark ? 'bg-white/10' : 'bg-black'}`}>
+                      <Check size={32} strokeWidth={3} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                     </div>
 
-                    <h1 className={`text-4xl md:text-6xl font-black font-serif text-center mb-4 leading-tight tracking-tight fade-in-up ${currentTheme.coverText}`}>The End</h1>
-                    <p className={`text-xl font-bold mb-8 fade-in-up ${currentTheme.coverSub}`}>What a great story!</p>
+                    <h1 className={`text-3xl md:text-5xl landscape:text-2xl font-black font-serif text-center mb-2 md:mb-4 landscape:mb-1 leading-tight tracking-tight fade-in-up ${currentTheme.coverText}`}>The End</h1>
+                    <p className={`text-lg md:text-xl landscape:text-base font-bold mb-4 md:mb-8 landscape:mb-2 fade-in-up ${currentTheme.coverSub}`}>What a great story!</p>
 
                     {/* Action Icon (Centerpiece) */}
                     {endAction !== 'stop' && (
-                      <div className="relative mb-8">
-                        <div className={`absolute inset-0 w-24 h-24 rounded-full pulse-ring ${currentTheme.pulse}`} />
-                        <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
-                          {endAction === 'library' && <ArrowLeft size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
-                          {endAction === 'loop' && <RefreshCw size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
-                          {endAction === 'random' && <Sparkles size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                      <div className="relative mb-4 md:mb-8 landscape:mb-2">
+                        <div className={`absolute inset-0 w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full pulse-ring ${currentTheme.pulse}`} />
+                        <div className={`w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full flex items-center justify-center border-4 backdrop-blur-sm shadow-xl ${currentTheme.coverElementBg} ${currentTheme.coverBorder}`}>
+                          {endAction === 'library' && <ArrowLeft size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'loop' && <RefreshCw size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
+                          {endAction === 'random' && <Sparkles size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />}
                         </div>
                       </div>
                     )}
 
                     {endAction === 'stop' && (
-                      <div className={`w-24 h-24 rounded-full flex items-center justify-center border-4 opacity-50 ${currentTheme.coverBorder}`}>
-                        <StopCircle size={40} style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
+                      <div className={`w-16 h-16 md:w-24 md:h-24 landscape:w-14 landscape:h-14 rounded-full flex items-center justify-center border-4 opacity-50 ${currentTheme.coverBorder}`}>
+                        <StopCircle size={32} className="w-8 h-8 md:w-10 md:h-10" style={{ color: { yellow: '#facc15', red: '#ef4444', green: '#10b981', orange: '#f97316', purple: '#a855f7', blue: '#3b82f6' }[boundaryColor] || '#facc15' }} />
                       </div>
                     )}
                   </div>
 
-                  <div className="flex flex-col items-center pb-8 opacity-80">
-                    <span className={`font-black text-xl uppercase tracking-widest mb-2 ${currentTheme.coverSub}`}>
+                  <div className="flex flex-col items-center pb-4 md:pb-8 landscape:pb-1 opacity-80">
+                    <span className={`font-black text-sm md:text-xl uppercase tracking-widest mb-1 md:mb-2 ${currentTheme.coverSub}`}>
                       {endAction === 'library' && 'Tap for Library'}
                       {endAction === 'loop' && 'Tap to Read Again'}
                       {endAction === 'random' && 'Tap for Surprise'}
                       {endAction === 'stop' && 'Story Finished'}
                     </span>
-                    {endAction !== 'stop' && <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-1`}>Next Step</span>}
+                    {endAction !== 'stop' && <span className={`text-lg font-bold ${currentTheme.coverSub} border-b-2 ${currentTheme.coverBorder} pb-0.5 md:pb-1`}>Next Step</span>}
                   </div>
                 </div>
               </div>
